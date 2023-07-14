@@ -3,7 +3,7 @@
 
 module System.Hardware.SenseCAP (withSenseCAP, querySenseCAP, getSenseCAP, setSenseCAP, sendCommand) where
 
-import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack, ByteString)
+import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
 import Data.Word (Word8)
 import System.Hardware.Serialport
 import System.IO (Handle)

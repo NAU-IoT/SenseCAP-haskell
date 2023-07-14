@@ -1,15 +1,13 @@
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE RankNTypes #-}
+
 module Repl(runRepl) where
 
 import System.Hardware.SenseCAP
 import GHC.IO.Handle (hFlush)
 import System.IO (stdout, Handle)
-import GHC.IO (catchAny)
 import Data.List (stripPrefix)
 import Data.List.Extra (word1)
 import System.Exit (exitSuccess)
-import Control.Exception.Base (throw, Exception, IOException)
 import Control.Exception (try)
 
 runRepl :: Handle -> IO ()
