@@ -9,6 +9,7 @@ where
 
 import Data.Word (Word8)
 import Repl (runRepl)
+import Query (runQuery)
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Hardware.SenseCAP
@@ -67,4 +68,4 @@ argHandler :: WeatherStation -> IO ()
 argHandler w = withSenseCAP (port w) (baud w) $ \cap -> do
   case w of
     Repl _ d _ -> runRepl cap d
-    Query {} -> putStrLn "QUERY"
+    Query _ d _ -> runQuery cap d
