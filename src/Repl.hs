@@ -18,6 +18,8 @@ helpMenu =
       "  GET   <X>     - Get a value from the sensor (read-only value).",
       "  QUERY <X>     - Get a value from the sensor (read-write value).",
       "  PUT   <X> <Y> - Set a value on the sensor.",
+      "  RAW   <CMD>   - Send a raw command to the sensor. Prefix (XA;) and newline are inserted.",
+      "  EXIT          - Exit the session. ^C also works.",
       "  HELP          - Display this menu."
     ]
 
@@ -40,4 +42,5 @@ parseCommand "HELP" _ _ = return $ Just helpMenu
 parseCommand (stripPrefix "GET " -> Just arg) p d = getSenseCAP p d arg
 parseCommand (stripPrefix "QUERY " -> Just arg) p d = querySenseCAP p d arg
 parseCommand (stripPrefix "PUT " -> Just arg) p d = uncurry (setSenseCAP p d) $ word1 arg
+parseCommand (stripPrefix "RAW " -> Just arg) p d = sendCommand p d arg
 parseCommand _ _ _ = return $ Just "Invalid command. Type HELP for a list of commands."
