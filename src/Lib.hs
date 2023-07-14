@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
 module Lib
@@ -13,35 +14,44 @@ import System.Environment (getArgs, withArgs)
 import System.Hardware.SenseCAP
 import System.Hardware.Serialport
 
+deriving instance Data CommSpeed
+
 data WeatherStation
   = Repl
       { port :: FilePath,
-        device :: Word8
+        device :: Word8,
+        baud :: CommSpeed
       }
   | Query
       { port :: FilePath,
-        device :: Word8
+        device :: Word8,
+        baud :: CommSpeed
       }
   deriving (Data, Typeable, Show, Eq)
 
 portHelp :: String
-portHelp = "Serial port to connect to. defaults to /dev/ttyUSB0"
+portHelp = "Serial port to connect to. defaults to /dev/ttyUSB0."
 
 deviceHelp :: String
 deviceHelp = "Device ID of the SenseCAP. This is almost always 0 (default)."
+
+baudHelp :: String
+baudHelp = "Baudrate of serial connection (9600 default)."
 
 repl :: WeatherStation
 repl =
   Repl
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
-      device = 0 &= typ "DEVICE" &= help deviceHelp
+      device = 0 &= typ "DEVICE" &= help deviceHelp,
+      baud = CS9600 &= help baudHelp
     }
 
 query :: WeatherStation
 query =
   Query
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
-      device = 0 &= typ "DEVICE" &= help deviceHelp
+      device = 0 &= typ "DEVICE" &= help deviceHelp,
+      baud = CS9600 &= help baudHelp
     }
 
 cmdModes :: Mode (CmdArgs WeatherStation)
@@ -54,8 +64,7 @@ commandEntry = do
   argHandler opts
 
 argHandler :: WeatherStation -> IO ()
-argHandler w = do
-  withSenseCAP (port w) CS9600 $ \cap -> do
-    case w of
-      Repl _ d -> runRepl cap d
-      Query _ _ -> putStrLn "QUERY"
+argHandler w = withSenseCAP (port w) (baud w) $ \cap -> do
+  case w of
+    Repl _ d _ -> runRepl cap d
+    Query {} -> putStrLn "QUERY"

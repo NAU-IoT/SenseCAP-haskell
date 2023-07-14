@@ -1,15 +1,25 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module Repl(runRepl) where
+module Repl (runRepl) where
 
-import System.Hardware.SenseCAP
-import GHC.IO.Handle (hFlush)
-import System.IO (stdout, Handle)
+import Control.Exception (try)
 import Data.List (stripPrefix)
 import Data.List.Extra (word1)
-import System.Exit (exitSuccess)
-import Control.Exception (try)
 import Data.Word (Word8)
+import GHC.IO.Handle (hFlush)
+import System.Exit (exitSuccess)
+import System.Hardware.SenseCAP
+import System.IO (Handle, stdout)
+
+helpMenu :: String
+helpMenu =
+  unlines
+    [ "COMMANDS:",
+      "  GET   <X>     - Get a value from the sensor (read-only value).",
+      "  QUERY <X>     - Get a value from the sensor (read-write value).",
+      "  PUT   <X> <Y> - Set a value on the sensor.",
+      "  HELP          - Display this menu."
+    ]
 
 runRepl :: Handle -> Word8 -> IO ()
 runRepl cap device = do
@@ -26,7 +36,8 @@ runRepl cap device = do
 
 parseCommand :: String -> Handle -> Word8 -> IO (Maybe String)
 parseCommand "EXIT" _ _ = exitSuccess
+parseCommand "HELP" _ _ = return $ Just helpMenu
 parseCommand (stripPrefix "GET " -> Just arg) p d = getSenseCAP p d arg
 parseCommand (stripPrefix "QUERY " -> Just arg) p d = querySenseCAP p d arg
 parseCommand (stripPrefix "PUT " -> Just arg) p d = uncurry (setSenseCAP p d) $ word1 arg
-parseCommand _ _ _ = return $ Just "Invalid command."
+parseCommand _ _ _ = return $ Just "Invalid command. Type HELP for a list of commands."
