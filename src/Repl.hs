@@ -1,4 +1,5 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RankNTypes #-}
 module Repl(runRepl) where
 
 import System.Hardware.SenseCAP
@@ -8,19 +9,19 @@ import GHC.IO (catchAny)
 import Data.List (stripPrefix)
 import Data.List.Extra (word1)
 import System.Exit (exitSuccess)
+import Control.Exception.Base (throw, Exception, IOException)
+import Control.Exception (try)
 
 runRepl :: Handle -> IO ()
 runRepl cap = do
   putStr "$ "
   hFlush stdout
   cmd <- getLine
-  res <- let query = Right <$> parseCommand cmd cap
-             ex e = return $ Left $ "IO Error: " <> show e
-             in catchAny query ex
+  res <- (try $ parseCommand cmd cap) :: IO (Either IOError (Maybe String))
   case res of
     Right (Just r) -> putStr $ "Response: " <> r
     Right Nothing -> putStr "Timed out."
-    Left e -> putStr e
+    Left e -> putStr $ "Error: " <> show e
   putStrLn ""
   runRepl cap
 
