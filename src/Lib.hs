@@ -1,25 +1,22 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Lib
-  ( someFunc,
-    commandEntry,
+  ( commandEntry,
   )
 where
 
-import Control.Monad (forever)
+import Repl (runRepl)
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
-import System.Serial
-import System.Serial.BlockingManager
-import System.Serial.SenseCAP
-import Repl (runRepl)
+import System.Hardware.SenseCAP
+import System.Hardware.Serialport
 
 data WeatherStation
   = Repl
-      { serialPort :: String
+      { serialPort :: FilePath
       }
   | Query
-      { serialPort :: String
+      { serialPort :: FilePath
       }
   deriving (Data, Typeable, Show, Eq)
 
@@ -46,20 +43,7 @@ commandEntry = do
 
 argHandler :: WeatherStation -> IO ()
 argHandler w = do
-  senseCap <- openSenseCAP (serialPort w) B9600
-  manager <- serialManager senseCap 1000
-  case w of
-    Repl _ -> runRepl manager
-    Query _ -> putStrLn "QUERY"
-
-someFunc :: IO ()
-someFunc = do
-  h <- openSerial "/dev/ttyUSB0" B9600 8 One NoParity NoFlowControl
-  manager <- serialManager h 1000
-  forever $ do
-    putStr "$ "
-    line <- getLine
-    response <- wrapCommand "\n" ("0XA;" <> line) manager
-    case response of
-      Just message -> putStrLn message
-      Nothing -> putStrLn "Err"
+  withSenseCAP (serialPort w) CS9600 $ \cap -> do
+    case w of
+      Repl _ -> runRepl cap
+      Query _ -> putStrLn "QUERY"
