@@ -2,14 +2,14 @@
 module Repl(runRepl) where
 
 import System.Hardware.SenseCAP
-import System.Hardware.Serialport
 import GHC.IO.Handle (hFlush)
-import System.IO (stdout)
+import System.IO (stdout, Handle)
 import GHC.IO (catchAny)
 import Data.List (stripPrefix)
 import Data.List.Extra (word1)
+import System.Exit (exitSuccess)
 
-runRepl :: SerialPort -> IO ()
+runRepl :: Handle -> IO ()
 runRepl cap = do
   putStr "$ "
   hFlush stdout
@@ -24,7 +24,8 @@ runRepl cap = do
   putStrLn ""
   runRepl cap
 
-parseCommand :: String -> SerialPort -> IO (Maybe String)
+parseCommand :: String -> Handle -> IO (Maybe String)
+parseCommand "EXIT" _ = exitSuccess
 parseCommand (stripPrefix "GET " -> Just arg) p = getSenseCAP p 0 arg
 parseCommand (stripPrefix "QUERY " -> Just arg) p = querySenseCAP p 0 arg
 parseCommand (stripPrefix "PUT " -> Just arg) p = uncurry (setSenseCAP p 0) $ word1 arg
