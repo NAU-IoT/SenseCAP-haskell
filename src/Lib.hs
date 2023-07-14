@@ -1,10 +1,12 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# OPTIONS_GHC -fno-cse #-}
 
 module Lib
   ( commandEntry,
   )
 where
 
+import Data.Word (Word8)
 import Repl (runRepl)
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
@@ -13,23 +15,33 @@ import System.Hardware.Serialport
 
 data WeatherStation
   = Repl
-      { serialPort :: FilePath
+      { port :: FilePath,
+        device :: Word8
       }
   | Query
-      { serialPort :: FilePath
+      { port :: FilePath,
+        device :: Word8
       }
   deriving (Data, Typeable, Show, Eq)
+
+portHelp :: String
+portHelp = "Serial port to connect to. defaults to /dev/ttyUSB0"
+
+deviceHelp :: String
+deviceHelp = "Device ID of the SenseCAP. This is almost always 0 (default)."
 
 repl :: WeatherStation
 repl =
   Repl
-    { serialPort = "/dev/ttyUSB0"
+    { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
+      device = 0 &= typ "DEVICE" &= help deviceHelp
     }
 
 query :: WeatherStation
 query =
   Query
-    { serialPort = "/dev/ttyUSB0"
+    { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
+      device = 0 &= typ "DEVICE" &= help deviceHelp
     }
 
 cmdModes :: Mode (CmdArgs WeatherStation)
@@ -43,7 +55,7 @@ commandEntry = do
 
 argHandler :: WeatherStation -> IO ()
 argHandler w = do
-  withSenseCAP (serialPort w) CS9600 $ \cap -> do
+  withSenseCAP (port w) CS9600 $ \cap -> do
     case w of
-      Repl _ -> runRepl cap
-      Query _ -> putStrLn "QUERY"
+      Repl _ d -> runRepl cap d
+      Query _ _ -> putStrLn "QUERY"
