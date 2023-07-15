@@ -4,6 +4,7 @@
 module System.Hardware.SenseCAP (withSenseCAP, querySenseCAP, getSenseCAP, setSenseCAP, sendCommand, SenseCAP (..)) where
 
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
+import Data.List (stripPrefix)
 import Data.Word (Word8)
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Hardware.Serialport
@@ -51,12 +52,13 @@ setSenseCAP :: SenseCAP -> String -> String -> IO (Maybe String)
 setSenseCAP port cmd value = sendCommand port $ cmd <> "=" <> value
 
 -- | Send a raw command (with the prefix applied) to the SenseCAP.
+-- | Note that this function also ensures a properly formatted response, and will return 'Nothing' otherwise.
+-- | If debugging, consider directly interacting with the 'Handle'.
 sendCommand :: SenseCAP -> String -> IO (Maybe String)
 sendCommand cap cmd = do
   let port = device cap
-  let cmd' = show (address cap) <> commandPrefix <> cmd <> "\r\n"
+      pre = show (address cap) <> commandPrefix
+      cmd' = pre <> cmd <> "\r\n"
   whenLoud $ putStrLn $ "Sending: " <> cmd'
   hPutStr port $ pack cmd'
-  maybe' . unpack <$> hGetLine port
-  where
-    maybe' a = if null a then Nothing else Just a
+  stripPrefix pre . unpack <$> hGetLine port

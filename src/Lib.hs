@@ -26,7 +26,8 @@ data WeatherStation
   | Query
       { port :: FilePath,
         device_ :: Word8,
-        baud_ :: CommSpeed
+        baud_ :: CommSpeed,
+        config :: FilePath
       }
   deriving (Data, Typeable, Show, Eq)
 
@@ -45,15 +46,16 @@ repl =
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
       device_ = 0 &= typ "DEVICE" &= help deviceHelp,
       baud_ = CS9600 &= help baudHelp
-    }
+    } &= help "Launch a REPL to issue commands to and interact with the sensor. Useful for debugging the sensor."
 
 query :: WeatherStation
 query =
   Query
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
       device_ = 0 &= typ "DEVICE" &= help deviceHelp,
-      baud_ = CS9600 &= help baudHelp
-    }
+      baud_ = CS9600 &= help baudHelp,
+      config = "config.yml" &= help "Config file to use. Defaults to config.yml."
+    } &= help "Query values from the sensor using a config file."
 
 cmdModes :: Mode (CmdArgs WeatherStation)
 cmdModes = cmdArgsMode $ modes [repl, query]
@@ -69,3 +71,4 @@ argHandler w = withSenseCAP (port w) (device_ w) (baud_ w) $ \cap -> do
   case w of
     Repl {} -> runRepl cap
     Query {} -> runQuery cap
+
