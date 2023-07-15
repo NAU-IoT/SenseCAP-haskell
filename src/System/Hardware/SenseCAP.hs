@@ -4,6 +4,7 @@
 module System.Hardware.SenseCAP (withSenseCAP, querySenseCAP, getSenseCAP, setSenseCAP, sendCommand) where
 
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
+import System.Console.CmdArgs.Verbosity (whenLoud)
 import Data.Word (Word8)
 import System.Hardware.Serialport
 import System.IO (Handle)
@@ -41,9 +42,9 @@ sendCommand :: Handle -> Word8 -> String -> IO (Maybe String)
 sendCommand port addr cmd = do
   let addr' = show addr
   let cmd' = addr' <> commandPrefix <> cmd <> "\r\n"
-  putStrLn $ "Sending: " <> cmd'
+  whenLoud $ putStrLn $ "Sending: " <> cmd'
   hPutStr port $ pack cmd'
-  null' <$> hGetLine port
+  toMaybe <$> hGetLine port
   where
     maybe' a = if null a then Nothing else Just a
-    null' = maybe' . unpack
+    toMaybe = maybe' . unpack
