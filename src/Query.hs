@@ -6,4 +6,4 @@ import System.Hardware.SenseCAP
 runQuery :: SenseCAP -> IO ()
 runQuery cap = do
   res <- getSenseCAP cap "G0"
-  putStrLn $ fromMaybe "Error." res
+  putStrLn $ maybe "Error." show res

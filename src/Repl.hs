@@ -36,11 +36,14 @@ runRepl cap = do
   putStrLn ""
   runRepl cap
 
+unMaybe :: Show a => Functor fa => Functor fb => fa (fb a) -> fa (fb String)
+unMaybe = ((show <$>) <$>)
+
 parseCommand :: String -> SenseCAP -> IO (Maybe String)
 parseCommand "EXIT" _ = exitSuccess
 parseCommand "HELP" _ = return $ Just helpMenu
-parseCommand (stripPrefix "GET " -> Just arg) p = getSenseCAP p arg
-parseCommand (stripPrefix "QUERY " -> Just arg) p = querySenseCAP p arg
-parseCommand (stripPrefix "PUT " -> Just arg) p = uncurry (setSenseCAP p) $ word1 arg
-parseCommand (stripPrefix "RAW " -> Just arg) p = sendCommand p arg
+parseCommand (stripPrefix "GET " -> Just arg) p = unMaybe $ getSenseCAP p arg
+parseCommand (stripPrefix "QUERY " -> Just arg) p = unMaybe $ querySenseCAP p arg
+parseCommand (stripPrefix "PUT " -> Just arg) p = unMaybe $ uncurry (setSenseCAP p) $ word1 arg
+parseCommand (stripPrefix "RAW " -> Just arg) p = unMaybe $ sendCommand p arg
 parseCommand _ _ = return $ Just "Invalid command. Type HELP for a list of commands."

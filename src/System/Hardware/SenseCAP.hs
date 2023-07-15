@@ -1,14 +1,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Hardware.SenseCAP (withSenseCAP, querySenseCAP, getSenseCAP, setSenseCAP, sendCommand, SenseCAP (..)) where
+module System.Hardware.SenseCAP (withSenseCAP, querySenseCAP, getSenseCAP, setSenseCAP, sendCommand, SenseCAP (..), SenseCAPResponse (..)) where
 
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
+import Data.Foldable (foldl')
+import Data.Function ((&))
 import Data.List (stripPrefix)
+import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Hardware.Serialport
 import System.IO (Handle)
+import Text.Read (readMaybe)
+import Control.Monad ((<=<))
 
 -- | The SenseCAP command prefix, needed for every command.
 commandPrefix :: String
@@ -40,25 +45,55 @@ withSenseCAP :: FilePath -> Word8 -> CommSpeed -> (SenseCAP -> IO a) -> IO a
 withSenseCAP port addr baud f = hWithSerial port (defaultCAPSettings baud) $ f . SenseCAP addr baud
 
 -- | Create a query command.
-querySenseCAP :: SenseCAP -> String -> IO (Maybe String)
+querySenseCAP :: SenseCAP -> String -> IO (Maybe [SenseCAPResponse])
 querySenseCAP port = sendCommand port . (<> "=?")
 
 -- | Create a get command.
-getSenseCAP :: SenseCAP -> String -> IO (Maybe String)
+getSenseCAP :: SenseCAP -> String -> IO (Maybe [SenseCAPResponse])
 getSenseCAP port = sendCommand port . (<> "?")
 
 -- | Create a set command.
-setSenseCAP :: SenseCAP -> String -> String -> IO (Maybe String)
+setSenseCAP :: SenseCAP -> String -> String -> IO (Maybe [SenseCAPResponse])
 setSenseCAP port cmd value = sendCommand port $ cmd <> "=" <> value
 
 -- | Send a raw command (with the prefix applied) to the SenseCAP.
 -- | Note that this function also ensures a properly formatted response, and will return 'Nothing' otherwise.
 -- | If debugging, consider directly interacting with the 'Handle'.
-sendCommand :: SenseCAP -> String -> IO (Maybe String)
+sendCommand :: SenseCAP -> String -> IO (Maybe [SenseCAPResponse])
 sendCommand cap cmd = do
   let port = device cap
       pre = show (address cap) <> commandPrefix
       cmd' = pre <> cmd <> "\r\n"
   whenLoud $ putStrLn $ "Sending: " <> cmd'
   hPutStr port $ pack cmd'
-  stripPrefix pre . unpack <$> hGetLine port
+  (parseResponse <=< (stripPrefix pre . unpack)) <$> hGetLine port
+
+data SenseCAPResponse
+  = IntResponse {valueInt :: Int, name :: String}
+  | DoubleResponse {valueDouble :: Double, name :: String}
+  | TextResponse {valueText :: String, name :: String}
+  deriving (Show, Eq)
+
+split :: Eq a => [a] -> a -> [[a]]
+split input splitter = uncurry (:) $ foldr squash (mempty, mempty) input
+  where
+    squash test (run, res) = if test == splitter then (mempty, run : res) else (test : run, res)
+
+parseResponse :: String -> Maybe [SenseCAPResponse]
+parseResponse s = mapM parseSingle $ split s ';'
+
+parseSingle :: String -> Maybe SenseCAPResponse
+parseSingle s = assemble $ split s '='
+  where
+    assemble :: [String] -> Maybe SenseCAPResponse
+    assemble [fieldName, fieldValue] =
+      Just $
+        fieldName
+          & let maybeInt = IntResponse <$> readMaybe fieldValue
+                maybeDouble = DoubleResponse <$> readMaybe fieldValue
+                text = TextResponse fieldValue
+             in fromMaybe text $ firstJust maybeInt maybeDouble
+    assemble _ = Nothing
+    firstJust (Just a) _ = Just a
+    firstJust Nothing (Just a) = Just a
+    firstJust _ _ = Nothing
