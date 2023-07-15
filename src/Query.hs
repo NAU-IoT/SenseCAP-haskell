@@ -1,6 +1,5 @@
 module Query (runQuery) where
 
-import Data.Maybe (fromMaybe)
 import System.Hardware.SenseCAP
 
 runQuery :: SenseCAP -> IO ()

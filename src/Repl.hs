@@ -5,11 +5,10 @@ module Repl (runRepl) where
 import Control.Exception (try)
 import Data.List (stripPrefix)
 import Data.List.Extra (word1)
-import Data.Word (Word8)
 import GHC.IO.Handle (hFlush)
 import System.Exit (exitSuccess)
 import System.Hardware.SenseCAP
-import System.IO (Handle, stdout)
+import System.IO (stdout)
 
 helpMenu :: String
 helpMenu =

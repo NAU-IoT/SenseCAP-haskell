@@ -1,10 +1,20 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Hardware.SenseCAP (withSenseCAP, querySenseCAP, getSenseCAP, setSenseCAP, sendCommand, SenseCAP (..), SenseCAPResponse (..)) where
+module System.Hardware.SenseCAP
+  ( withSenseCAP,
+    querySenseCAP,
+    getSenseCAP,
+    setSenseCAP,
+    sendCommand,
+    SenseCAP (..),
+    SenseCAPResponse (..),
+    valueName,
+  )
+where
 
+import Control.Monad ((<=<))
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
-import Data.Foldable (foldl')
 import Data.Function ((&))
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
@@ -13,7 +23,6 @@ import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Hardware.Serialport
 import System.IO (Handle)
 import Text.Read (readMaybe)
-import Control.Monad ((<=<))
 
 -- | The SenseCAP command prefix, needed for every command.
 commandPrefix :: String
@@ -66,12 +75,18 @@ sendCommand cap cmd = do
       cmd' = pre <> cmd <> "\r\n"
   whenLoud $ putStrLn $ "Sending: " <> cmd'
   hPutStr port $ pack cmd'
-  (parseResponse <=< (stripPrefix pre . unpack)) <$> hGetLine port
+  (parseResponse <=< stripPrefix pre . unpack) <$> hGetLine port
+
+-- | Get the name of a response value
+valueName :: SenseCAPResponse -> String
+valueName (IntResponse _ s) = s
+valueName (DoubleResponse _ s) = s
+valueName (TextResponse _ s) = s
 
 data SenseCAPResponse
-  = IntResponse {valueInt :: Int, name :: String}
-  | DoubleResponse {valueDouble :: Double, name :: String}
-  | TextResponse {valueText :: String, name :: String}
+  = IntResponse Int String
+  | DoubleResponse Double String
+  | TextResponse String String
   deriving (Show, Eq)
 
 split :: Eq a => [a] -> a -> [[a]]
