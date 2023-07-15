@@ -101,7 +101,7 @@ split input splitter = uncurry (:) $ foldr squash (mempty, mempty) input
 
 -- | Parse a semicolon-delimited set of responses.
 parseResponse :: String -> Maybe [SenseCAPResponse]
-parseResponse s = mapM parseSingle $ split s ';'
+parseResponse s = mapM parseSingle $ filter (/= '\r') <$> split s ';'
 
 -- | Parse a single key-value pair into a 'SenseCAPResponse'
 parseSingle :: String -> Maybe SenseCAPResponse
