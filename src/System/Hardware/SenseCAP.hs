@@ -83,20 +83,27 @@ valueName (IntResponse _ s) = s
 valueName (DoubleResponse _ s) = s
 valueName (TextResponse _ s) = s
 
+-- | A response (key-value) from the SenseCAP.
 data SenseCAPResponse
-  = IntResponse Int String
-  | DoubleResponse Double String
-  | TextResponse String String
+  = -- | Response containing an Int
+    IntResponse Int String
+  | -- | Response containing a Double
+    DoubleResponse Double String
+  | -- | Response containing a String
+    TextResponse String String
   deriving (Show, Eq)
 
+-- | Split a list on a value.
 split :: Eq a => [a] -> a -> [[a]]
 split input splitter = uncurry (:) $ foldr squash (mempty, mempty) input
   where
     squash test (run, res) = if test == splitter then (mempty, run : res) else (test : run, res)
 
+-- | Parse a semicolon-delimited set of responses.
 parseResponse :: String -> Maybe [SenseCAPResponse]
 parseResponse s = mapM parseSingle $ split s ';'
 
+-- | Parse a single key-value pair into a 'SenseCAPResponse'
 parseSingle :: String -> Maybe SenseCAPResponse
 parseSingle s = assemble $ split s '='
   where
