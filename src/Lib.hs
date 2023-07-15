@@ -20,13 +20,13 @@ deriving instance Data CommSpeed
 data WeatherStation
   = Repl
       { port :: FilePath,
-        device :: Word8,
-        baud :: CommSpeed
+        device_ :: Word8,
+        baud_ :: CommSpeed
       }
   | Query
       { port :: FilePath,
-        device :: Word8,
-        baud :: CommSpeed
+        device_ :: Word8,
+        baud_ :: CommSpeed
       }
   deriving (Data, Typeable, Show, Eq)
 
@@ -43,16 +43,16 @@ repl :: WeatherStation
 repl =
   Repl
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
-      device = 0 &= typ "DEVICE" &= help deviceHelp,
-      baud = CS9600 &= help baudHelp
+      device_ = 0 &= typ "DEVICE" &= help deviceHelp,
+      baud_ = CS9600 &= help baudHelp
     }
 
 query :: WeatherStation
 query =
   Query
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
-      device = 0 &= typ "DEVICE" &= help deviceHelp,
-      baud = CS9600 &= help baudHelp
+      device_ = 0 &= typ "DEVICE" &= help deviceHelp,
+      baud_ = CS9600 &= help baudHelp
     }
 
 cmdModes :: Mode (CmdArgs WeatherStation)
@@ -65,7 +65,7 @@ commandEntry = do
   argHandler opts
 
 argHandler :: WeatherStation -> IO ()
-argHandler w = withSenseCAP (port w) (baud w) $ \cap -> do
+argHandler w = withSenseCAP (port w) (device_ w) (baud_ w) $ \cap -> do
   case w of
-    Repl _ d _ -> runRepl cap d
-    Query _ d _ -> runQuery cap d
+    Repl {} -> runRepl cap
+    Query {} -> runQuery cap

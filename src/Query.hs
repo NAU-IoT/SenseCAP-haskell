@@ -1,14 +1,9 @@
-module Query(runQuery) where
+module Query (runQuery) where
 
-import Data.Word (Word8)
+import Data.Maybe (fromMaybe)
 import System.Hardware.SenseCAP
 
-import System.IO (Handle)
-import Data.Maybe (fromMaybe)
-
-
-
-runQuery :: Handle -> Word8 -> IO ()
-runQuery cap device = do
-  res <- getSenseCAP cap device "G0"
+runQuery :: SenseCAP -> IO ()
+runQuery cap = do
+  res <- getSenseCAP cap "G0"
   putStrLn $ fromMaybe "Error." res

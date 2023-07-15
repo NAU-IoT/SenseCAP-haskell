@@ -23,24 +23,24 @@ helpMenu =
       "  HELP          - Display this menu."
     ]
 
-runRepl :: Handle -> Word8 -> IO ()
-runRepl cap device = do
+runRepl :: SenseCAP -> IO ()
+runRepl cap = do
   putStr "$ "
   hFlush stdout
   cmd <- getLine
-  res <- (try $ parseCommand cmd cap device) :: IO (Either IOError (Maybe String))
+  res <- (try $ parseCommand cmd cap) :: IO (Either IOError (Maybe String))
   case res of
     Right (Just r) -> putStr $ "Response: " <> r
     Right Nothing -> putStr "Timed out."
     Left e -> putStr $ "Error: " <> show e
   putStrLn ""
-  runRepl cap device
+  runRepl cap
 
-parseCommand :: String -> Handle -> Word8 -> IO (Maybe String)
-parseCommand "EXIT" _ _ = exitSuccess
-parseCommand "HELP" _ _ = return $ Just helpMenu
-parseCommand (stripPrefix "GET " -> Just arg) p d = getSenseCAP p d arg
-parseCommand (stripPrefix "QUERY " -> Just arg) p d = querySenseCAP p d arg
-parseCommand (stripPrefix "PUT " -> Just arg) p d = uncurry (setSenseCAP p d) $ word1 arg
-parseCommand (stripPrefix "RAW " -> Just arg) p d = sendCommand p d arg
-parseCommand _ _ _ = return $ Just "Invalid command. Type HELP for a list of commands."
+parseCommand :: String -> SenseCAP -> IO (Maybe String)
+parseCommand "EXIT" _ = exitSuccess
+parseCommand "HELP" _ = return $ Just helpMenu
+parseCommand (stripPrefix "GET " -> Just arg) p = getSenseCAP p arg
+parseCommand (stripPrefix "QUERY " -> Just arg) p = querySenseCAP p arg
+parseCommand (stripPrefix "PUT " -> Just arg) p = uncurry (setSenseCAP p) $ word1 arg
+parseCommand (stripPrefix "RAW " -> Just arg) p = sendCommand p arg
+parseCommand _ _ = return $ Just "Invalid command. Type HELP for a list of commands."
