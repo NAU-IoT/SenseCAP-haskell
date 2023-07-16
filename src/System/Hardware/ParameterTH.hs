@@ -1,3 +1,4 @@
+-- | For internal usage, generating instances for parameters. Not for API usage!
 module System.Hardware.ParameterTH (instanceRead, instanceRead', instanceWrite, QueryType (..)) where
 
 import Language.Haskell.TH
@@ -48,13 +49,20 @@ instanceWrite cmd class' maybeParse = do
   return [instance' instanceName className [genUnparseValue maybeParse, set]]
 
 genUnparseValue :: Maybe String -> Dec
-genUnparseValue maybeParse = 
+genUnparseValue maybeParse =
   let unpar = mkName "unParseValue"
       coerce = VarE $ mkName "coerce"
       compose = VarE $ mkName "."
-  in FunD unpar [Clause [] (case maybeParse of
-    Nothing -> NormalB coerce
-    Just a -> NormalB $ InfixE (Just $ VarE $ mkName a) compose (Just coerce)) []]
+   in FunD
+        unpar
+        [ Clause
+            []
+            ( case maybeParse of
+                Nothing -> NormalB coerce
+                Just a -> NormalB $ InfixE (Just $ VarE $ mkName a) compose (Just coerce)
+            )
+            []
+        ]
 
 genSetValue :: String -> Q Dec
 genSetValue cmd = do
