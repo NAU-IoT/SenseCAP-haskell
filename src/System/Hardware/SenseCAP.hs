@@ -282,49 +282,49 @@ newtype CAPHeating = CAPHeating Bool deriving (Show, Eq)
 -- sensor values
 
 newtype CAPAirTemperature = CAPAirTemperature Double deriving (Show, Eq)
-$(instanceRead' "G0" "AT" "CAPAirTemperature" "toDouble" CAPQuery)
+$(instanceRead' "G0" "AT" "CAPAirTemperature" "toDouble" CAPGet)
 
 newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq)
-$(instanceRead' "G0" "AH" "CAPAirHumidity" "toDouble" CAPQuery)
+$(instanceRead' "G0" "AH" "CAPAirHumidity" "toDouble" CAPGet)
 
 newtype CAPBarometricPressure = CAPBarometricPressure Double deriving (Show, Eq)
-$(instanceRead' "G0" "AP" "CAPBarometricPressure" "toDouble" CAPQuery)
+$(instanceRead' "G0" "AP" "CAPBarometricPressure" "toDouble" CAPGet)
 
 newtype CAPLightIntensity = CAPLightIntensity Double deriving (Show, Eq)
-$(instanceRead' "G0" "LX" "CAPLightIntensity" "toDouble" CAPQuery)
+$(instanceRead' "G0" "LX" "CAPLightIntensity" "toDouble" CAPGet)
 
 newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq)
-$(instanceRead' "G0" "DN" "CAPMinimumWindDirection" "toDouble" CAPQuery)
+$(instanceRead' "G0" "DN" "CAPMinimumWindDirection" "toDouble" CAPGet)
 
 newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq)
-$(instanceRead' "G0" "Dm" "CAPMaximumWindDirection" "toDouble" CAPQuery)
+$(instanceRead' "G0" "Dm" "CAPMaximumWindDirection" "toDouble" CAPGet)
 
 newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq)
-$(instanceRead' "G0" "DA" "CAPAverageWindDirection" "toDouble" CAPQuery)
+$(instanceRead' "G0" "DA" "CAPAverageWindDirection" "toDouble" CAPGet)
 
 newtype CAPMinimumWindSpeed = CAPMinimumWindSpeed Double deriving (Show, Eq)
-$(instanceRead' "G0" "SN" "CAPMinimumWindSpeed" "toDouble" CAPQuery)
+$(instanceRead' "G0" "SN" "CAPMinimumWindSpeed" "toDouble" CAPGet)
 
 newtype CAPMaximumWindSpeed = CAPMaximumWindSpeed Double deriving (Show, Eq)
-$(instanceRead' "G0" "SM" "CAPMaximumWindSpeed" "toDouble" CAPQuery)
+$(instanceRead' "G0" "SM" "CAPMaximumWindSpeed" "toDouble" CAPGet)
 
 newtype CAPAverageWindSpeed = CAPAverageWindSpeed Double deriving (Show, Eq)
-$(instanceRead' "G0" "SA" "CAPAverageWindSpeed" "toDouble" CAPQuery)
+$(instanceRead' "G0" "SA" "CAPAverageWindSpeed" "toDouble" CAPGet)
 
 newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq)
-$(instanceRead' "G0" "RA" "CAPAccumulatedRainfall" "toDouble" CAPQuery)
+$(instanceRead' "G0" "RA" "CAPAccumulatedRainfall" "toDouble" CAPGet)
 
 newtype CAPRainfallDuration = CAPRainfallDuration Double deriving (Show, Eq)
-$(instanceRead' "G0" "RD" "CAPRainfallDuration" "toDouble" CAPQuery)
+$(instanceRead' "G0" "RD" "CAPRainfallDuration" "toDouble" CAPGet)
 
 newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq)
-$(instanceRead' "G0" "RI" "CAPRainfallIntensity" "toDouble" CAPQuery)
+$(instanceRead' "G0" "RI" "CAPRainfallIntensity" "toDouble" CAPGet)
 
 newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq)
-$(instanceRead' "G0" "Rp" "CAPMaximumRainfallIntensity" "toDouble" CAPQuery)
+$(instanceRead' "G0" "Rp" "CAPMaximumRainfallIntensity" "toDouble" CAPGet)
 
 newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq)
-$(instanceRead' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPQuery)
+$(instanceRead' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPGet)
 
 newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
 
