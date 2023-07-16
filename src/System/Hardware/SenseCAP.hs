@@ -229,6 +229,10 @@ toDouble (DoubleResponse d _) = Right d
 toDouble (IntResponse d _) = Right $ fromIntegral d
 toDouble r = Left $ "Response was not a double: " <> show r
 
+toInt :: SenseCAPResponse -> Either String Int
+toInt (IntResponse i _) = Right i
+toInt r = Left $ "Response was not an integer: " <> show r
+
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
 
@@ -287,17 +291,18 @@ $(instanceRead' "G0" "AT" "CAPAirTemperature" "toDouble" CAPGet)
 newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq)
 $(instanceRead' "G0" "AH" "CAPAirHumidity" "toDouble" CAPGet)
 
-newtype CAPBarometricPressure = CAPBarometricPressure Double deriving (Show, Eq)
-$(instanceRead' "G0" "AP" "CAPBarometricPressure" "toDouble" CAPGet)
+newtype CAPBarometricPressure = CAPBarometricPressure Int deriving (Show, Eq)
+$(instanceRead' "G0" "AP" "CAPBarometricPressure" "toInt" CAPGet)
 
-newtype CAPLightIntensity = CAPLightIntensity Double deriving (Show, Eq)
-$(instanceRead' "G0" "LX" "CAPLightIntensity" "toDouble" CAPGet)
+newtype CAPLightIntensity = CAPLightIntensity Int deriving (Show, Eq)
+$(instanceRead' "G0" "LX" "CAPLightIntensity" "toInt" CAPGet)
 
 newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq)
 $(instanceRead' "G0" "DN" "CAPMinimumWindDirection" "toDouble" CAPGet)
 
 newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq)
-$(instanceRead' "G0" "Dm" "CAPMaximumWindDirection" "toDouble" CAPGet)
+$(instanceRead' "G0" "DM" "CAPMaximumWindDirection" "toDouble" CAPGet)
+-- The docs say this is "Dm" (lowercase m), that is incorrect, the M is uppercase.
 
 newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq)
 $(instanceRead' "G0" "DA" "CAPAverageWindDirection" "toDouble" CAPGet)
@@ -314,14 +319,15 @@ $(instanceRead' "G0" "SA" "CAPAverageWindSpeed" "toDouble" CAPGet)
 newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq)
 $(instanceRead' "G0" "RA" "CAPAccumulatedRainfall" "toDouble" CAPGet)
 
-newtype CAPRainfallDuration = CAPRainfallDuration Double deriving (Show, Eq)
-$(instanceRead' "G0" "RD" "CAPRainfallDuration" "toDouble" CAPGet)
+newtype CAPRainfallDuration = CAPRainfallDuration Int deriving (Show, Eq)
+$(instanceRead' "G0" "RD" "CAPRainfallDuration" "toInt" CAPGet)
 
 newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq)
 $(instanceRead' "G0" "RI" "CAPRainfallIntensity" "toDouble" CAPGet)
 
 newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq)
-$(instanceRead' "G0" "Rp" "CAPMaximumRainfallIntensity" "toDouble" CAPGet)
+$(instanceRead' "G0" "RP" "CAPMaximumRainfallIntensity" "toDouble" CAPGet)
+-- The docs say this is "Rp" (lowercase p), that is incorrect, the P is uppercase.
 
 newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq)
 $(instanceRead' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPGet)
