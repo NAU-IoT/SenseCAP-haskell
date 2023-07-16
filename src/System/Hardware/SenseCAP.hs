@@ -19,7 +19,6 @@ module System.Hardware.SenseCAP
     CAPBaudRate (..),
     CAPModel (..),
     CAPAccumulatedRainfall (..),
-    CAPAddress (..),
     CAPAirHumidity (..),
     CAPAirTemperature (..),
     CAPAverageWindDirection (..),
@@ -241,6 +240,9 @@ toInt :: SenseCAPResponse -> Either String Int
 toInt (IntResponse i _) = Right i
 toInt r = Left $ "Response was not an integer: " <> show r
 
+fromInt :: Int -> String
+fromInt = show
+
 toTemperatureUnit :: SenseCAPResponse -> Either String TemperatureUnit
 toTemperatureUnit (TextResponse s _) = case s of
   "C" -> Right Celsius
@@ -269,6 +271,18 @@ fromPressureUnit Bar = "B"
 fromPressureUnit MMHg = "M"
 fromPressureUnit InHg = "I"
 
+toCommProtocol :: SenseCAPResponse -> Either String CommProtocol
+toCommProtocol (IntResponse i _) = case i of
+  1 -> Right SDI12
+  2 -> Right Modbus
+  3 -> Right ASCII
+  _ -> Left $ "Got invalid communication protocol ID: " <> show i
+
+fromCommProtocol :: CommProtocol -> String
+fromCommProtocol SDI12 = "1"
+fromCommProtocol Modbus = "2"
+fromCommProtocol ASCII = "3"
+
 -- | Encapsulates a value which can be read from the SenseCAP.
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
@@ -284,8 +298,6 @@ class (Show a) => SenseCAPWrite a where
 
 -- device parameters
 
-newtype CAPAddress = CAPAddress Int deriving (Show, Eq)
-
 newtype CAPBaudRate = CAPBaudRate CommSpeed deriving (Show, Eq)
 
 $(instanceRead "BD" "CAPBaudRate" "toBaud" CAPQuery)
@@ -293,7 +305,13 @@ $(instanceWrite "BD" "CAPBaudRate" $ Just "fromBaud")
 
 newtype CAPProtocol = CAPProtocol CommProtocol deriving (Show, Eq)
 
+$(instanceRead "CP" "CAPProtocol" "toCommProtocol" CAPQuery)
+$(instanceWrite "CP" "CAPProtocol" $ Just "fromCommProtocol")
+
 newtype CAPModbusAddress = CAPModbusAddress Int deriving (Show, Eq)
+
+$(instanceRead "MBAD" "CAPModbusAddress" "toInt" CAPQuery)
+$(instanceWrite "MBAD" "CAPModbusAddress" $ Just "fromInt")
 
 newtype CAPRS485BaudRate = CAPRS485BaudRate CommSpeed deriving (Show, Eq)
 
@@ -314,6 +332,7 @@ newtype CAPVersion = CAPVersion String deriving (Show, Eq)
 $(instanceRead "VE" "CAPVersion" "valueAsString" CAPQuery)
 
 newtype CAPSerial = CAPSerial Int deriving (Show, Eq)
+$(instanceRead "S/N" "CAPSerial" "toInt" CAPQuery)
 
 newtype CAPProductionDate = CAPProductionDate String deriving (Show, Eq)
 
@@ -399,31 +418,49 @@ newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
 
 newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq)
 
+$(instanceRead "IB" "CAPTemperatureUpdateInterval" "toInt" CAPQuery)
+$(instanceWrite "IB" "CAPTemperatureUpdateInterval" $ Just "fromInt")
+
 newtype CAPTemperatureUnit = CAPTemperatureUnit TemperatureUnit deriving (Show, Eq)
 
-$(instanceRead "UT" "CAPTemperatureUnit" "toTemperatureUnit" CAPGet)
+$(instanceRead "UT" "CAPTemperatureUnit" "toTemperatureUnit" CAPQuery)
 $(instanceWrite "UT" "CAPTemperatureUnit" $ Just "fromTemperatureUnit")
 
 newtype CAPPressureUnit = CAPPressureUnit PressureUnit deriving (Show, Eq)
 
-$(instanceRead "UP" "CAPPressureUnit" "toPressureUnit" CAPGet)
+$(instanceRead "UP" "CAPPressureUnit" "toPressureUnit" CAPQuery)
 $(instanceWrite "UP" "CAPPressureUnit" $ Just "fromPressureUnit")
 
 newtype CAPWindUpdateInterval = CAPWindUpdateInterval Int deriving (Show, Eq)
 
+$(instanceRead "IW" "CAPWindUpdateInterval" "toInt" CAPQuery)
+$(instanceWrite "IW" "CAPWindUpdateInterval" $ Just "fromInt")
+
 newtype CAPWindTimeWindow = CAPWindTimeWindow Int deriving (Show, Eq)
+
+$(instanceRead "AW" "CAPWindTimeWindow" "toInt" CAPQuery)
+$(instanceWrite "AW" "CAPWindTimeWindow" $ Just "fromInt")
 
 newtype CAPWindSpeedUnit = CAPWindSpeedUnit SpeedUnit deriving (Show, Eq)
 
 newtype CAPWindOffsetCorrection = CAPWindOffsetCorrection Int deriving (Show, Eq)
 
+$(instanceRead "DO" "CAPWindOffsetCorrection" "toInt" CAPQuery)
+$(instanceWrite "DO" "CAPWindOffsetCorrection" $ Just "fromInt")
+
 newtype CAPRainUpdateInterval = CAPRainUpdateInterval Int deriving (Show, Eq)
+
+$(instanceRead "IR" "CAPRainUpdateInterval" "toInt" CAPQuery)
+$(instanceWrite "IR" "CAPRainUpdateInterval" $ Just "fromInt")
 
 newtype CAPRainUnit = CAPRainUnit LengthUnit deriving (Show, Eq)
 
 newtype CAPRainResetMode = CAPRainResetMode RainResetMode deriving (Show, Eq)
 
 newtype CAPRainOverflowValue = CAPRainOverflowValue Int deriving (Show, Eq)
+
+$(instanceRead "AL" "CAPRainOverflowValue" "toInt" CAPQuery)
+$(instanceWrite "AL" "CAPRainOverflowValue" $ Just "fromInt")
 
 newtype CAPRainDurationOverflowValue = CAPRainDurationOverflowValue Int deriving (Show, Eq)
 

@@ -12,4 +12,5 @@ runQuery cap = do
   print tempSet
   temp <- getValue cap :: IO (Either String CAPAirTemperature)
   print temp
-  
+  serial <- getValue cap :: IO (Either String CAPSerial)
+  print serial
