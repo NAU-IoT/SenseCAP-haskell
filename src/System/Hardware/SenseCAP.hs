@@ -15,50 +15,54 @@ module System.Hardware.SenseCAP
     getValue,
     setValue,
     SenseCAPWrite,
-    CAPName,
-    CAPBaudRate,
-    CAPModel,
-    CAPAccumulatedRainfall,
-    CAPAddress,
-    CAPAirHumidity,
-    CAPAirTemperature,
-    CAPAverageWindDirection,
-    CAPAverageWindSpeed,
-    CAPBarometricPressure,
-    CAPClearRain,
-    CAPClearRainDuration,
-    CAPCompassState,
-    CAPFallDetection,
-    CAPHeating,
-    CAPHeatingTemperature,
-    CAPLightIntensity,
-    CAPMaximumRainfallIntensity,
-    CAPMaximumWindDirection,
-    CAPMaximumWindSpeed,
-    CAPMinimumWindDirection,
-    CAPMinimumWindSpeed,
-    CAPModbusAddress,
-    CAPRainDurationOverflowValue,
-    CAPRainOverflowValue,
-    CAPPressureUnit,
-    CAPRainUnit,
-    CAPTemperatureUnit,
-    CAPProtocol,
-    CAPWindSpeedUnit,
-    CAPRS485BaudRate,
-    CAPVersion,
-    CAPSerial,
-    CAPProductionDate,
-    CAPTiltDetect,
-    CAPRainfallDuration,
-    CAPRainfallIntensity,
-    CAPRainResetMode,
-    CAPRestoreConfig,
-    CAPRainUpdateInterval,
-    CAPTemperatureUpdateInterval,
-    CAPWindUpdateInterval,
-    CAPWindTimeWindow,
-    CAPWindOffsetCorrection
+    CAPName (..),
+    CAPBaudRate (..),
+    CAPModel (..),
+    CAPAccumulatedRainfall (..),
+    CAPAddress (..),
+    CAPAirHumidity (..),
+    CAPAirTemperature (..),
+    CAPAverageWindDirection (..),
+    CAPAverageWindSpeed (..),
+    CAPBarometricPressure (..),
+    CAPClearRain (..),
+    CAPClearRainDuration (..),
+    CAPCompassState (..),
+    CAPFallDetection (..),
+    CAPHeating (..),
+    CAPHeatingTemperature (..),
+    CAPLightIntensity (..),
+    CAPMaximumRainfallIntensity (..),
+    CAPMaximumWindDirection (..),
+    CAPMaximumWindSpeed (..),
+    CAPMinimumWindDirection (..),
+    CAPMinimumWindSpeed (..),
+    CAPModbusAddress (..),
+    CAPRainDurationOverflowValue (..),
+    CAPRainOverflowValue (..),
+    CAPPressureUnit (..),
+    CAPRainUnit (..),
+    CAPTemperatureUnit (..),
+    CAPProtocol (..),
+    CAPWindSpeedUnit (..),
+    CAPRS485BaudRate (..),
+    CAPVersion (..),
+    CAPSerial (..),
+    CAPProductionDate (..),
+    CAPTiltDetect (..),
+    CAPRainfallDuration (..),
+    CAPRainfallIntensity (..),
+    CAPRainResetMode (..),
+    CAPRestoreConfig (..),
+    CAPRainUpdateInterval (..),
+    CAPTemperatureUpdateInterval (..),
+    CAPWindUpdateInterval (..),
+    CAPWindTimeWindow (..),
+    CAPWindOffsetCorrection (..),
+    TemperatureUnit (..),
+    LengthUnit (..),
+    SpeedUnit (..),
+    PressureUnit (..),
   )
 where
 
@@ -102,6 +106,7 @@ data SenseCAP = SenseCAP
     device :: Handle
   }
 
+-- | The communication protocol the SenseCAP is using. Unless you are accessing the SenseCAP over the USB interface this will obviously be 'ASCII'
 data CommProtocol = SDI12 | Modbus | ASCII deriving (Show, Eq)
 
 data CompassState = CompassEnable | CompassDisable | CompassGeomagnetic deriving (Show, Eq)
@@ -201,21 +206,13 @@ response = maybeToEither "No response from SenseCAP."
 extract :: SenseCAPRead b => String -> Maybe [SenseCAPResponse] -> Either String b
 extract n i = response i >>= findValue n >>= parseValue
 
-parseCommSpeed :: Int -> Either String CommSpeed
-parseCommSpeed 96 = Right CS9600
-parseCommSpeed 192 = Right CS19200
-parseCommSpeed 384 = Right CS38400
-parseCommSpeed 576 = Right CS57600
-parseCommSpeed 1152 = Right CS115200
-parseCommSpeed i = Left $ "Invalid baudrate received: " <> show i
-
-unParseCommSpeed :: CommSpeed -> String
-unParseCommSpeed CS9600 = "96"
-unParseCommSpeed CS19200 = "192"
-unParseCommSpeed CS38400 = "384"
-unParseCommSpeed CS57600 = "576"
-unParseCommSpeed CS115200 = "1152"
-unParseCommSpeed _ = "96" -- default
+fromBaud :: CommSpeed -> String
+fromBaud CS9600 = "96"
+fromBaud CS19200 = "192"
+fromBaud CS38400 = "384"
+fromBaud CS57600 = "576"
+fromBaud CS115200 = "1152"
+fromBaud _ = "96" -- default
 
 toBaud :: SenseCAPResponse -> Either String CommSpeed
 toBaud a = toBaud' a >>= parseCommSpeed
@@ -223,6 +220,13 @@ toBaud a = toBaud' a >>= parseCommSpeed
     toBaud' :: SenseCAPResponse -> Either String Int
     toBaud' (IntResponse i _) = Right i
     toBaud' i = Left $ "Response given was not an integer: " <> show i
+    parseCommSpeed :: Int -> Either String CommSpeed
+    parseCommSpeed 96 = Right CS9600
+    parseCommSpeed 192 = Right CS19200
+    parseCommSpeed 384 = Right CS38400
+    parseCommSpeed 576 = Right CS57600
+    parseCommSpeed 1152 = Right CS115200
+    parseCommSpeed i = Left $ "Invalid baudrate received: " <> show i
 
 toDouble :: SenseCAPResponse -> Either String Double
 toDouble (DoubleResponse d _) = Right d
@@ -232,6 +236,17 @@ toDouble r = Left $ "Response was not a double: " <> show r
 toInt :: SenseCAPResponse -> Either String Int
 toInt (IntResponse i _) = Right i
 toInt r = Left $ "Response was not an integer: " <> show r
+
+toTemperatureUnit :: SenseCAPResponse -> Either String TemperatureUnit
+toTemperatureUnit (TextResponse s _) = case s of
+  "C" -> Right Celsius
+  "F" -> Right Farenheit
+  _ -> Left $ "Invalid temperature unit received: " <> s
+toTemperatureUnit s = Left $ "Invalid data type for temperature unit: " <> show s
+
+fromTemperatureUnit :: TemperatureUnit -> String
+fromTemperatureUnit Farenheit = "F"
+fromTemperatureUnit Celsius = "C"
 
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
@@ -249,30 +264,36 @@ class (Show a) => SenseCAPWrite a where
 newtype CAPAddress = CAPAddress Int deriving (Show, Eq)
 
 newtype CAPBaudRate = CAPBaudRate CommSpeed deriving (Show, Eq)
+
 $(instanceRead "BD" "CAPBaudRate" "toBaud" CAPQuery)
-$(instanceWrite "BD" "CAPBaudRate" $ Just "unParseCommSpeed")
+$(instanceWrite "BD" "CAPBaudRate" $ Just "fromBaud")
 
 newtype CAPProtocol = CAPProtocol CommProtocol deriving (Show, Eq)
 
 newtype CAPModbusAddress = CAPModbusAddress Int deriving (Show, Eq)
 
 newtype CAPRS485BaudRate = CAPRS485BaudRate CommSpeed deriving (Show, Eq)
+
 $(instanceRead "MBBD" "CAPRS485BaudRate" "toBaud" CAPQuery)
-$(instanceWrite "MBBD" "CAPRS485BaudRate" $ Just "unParseCommSpeed")
+$(instanceWrite "MBBD" "CAPRS485BaudRate" $ Just "fromBaud")
 
 newtype CAPName = CAPName String deriving (Show, Eq)
+
 $(instanceRead "NA" "CAPName" "valueAsString" CAPQuery)
 $(instanceWrite "NA" "CAPName" Nothing)
 
 newtype CAPModel = CAPModel String deriving (Show, Eq)
+
 $(instanceRead "TP" "CAPModel" "valueAsString" CAPQuery)
 
 newtype CAPVersion = CAPVersion String deriving (Show, Eq)
+
 $(instanceRead "VE" "CAPVersion" "valueAsString" CAPQuery)
 
 newtype CAPSerial = CAPSerial Int deriving (Show, Eq)
 
 newtype CAPProductionDate = CAPProductionDate String deriving (Show, Eq)
+
 $(instanceRead "MD" "CAPProductionDate" "valueAsString" CAPQuery)
 
 newtype CAPRestoreConfig = CAPRestoreConfig Bool deriving (Show, Eq)
@@ -286,50 +307,67 @@ newtype CAPHeating = CAPHeating Bool deriving (Show, Eq)
 -- sensor values
 
 newtype CAPAirTemperature = CAPAirTemperature Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "AT" "CAPAirTemperature" "toDouble" CAPGet)
 
 newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "AH" "CAPAirHumidity" "toDouble" CAPGet)
 
 newtype CAPBarometricPressure = CAPBarometricPressure Int deriving (Show, Eq)
+
 $(instanceRead' "G0" "AP" "CAPBarometricPressure" "toInt" CAPGet)
 
 newtype CAPLightIntensity = CAPLightIntensity Int deriving (Show, Eq)
+
 $(instanceRead' "G0" "LX" "CAPLightIntensity" "toInt" CAPGet)
 
 newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "DN" "CAPMinimumWindDirection" "toDouble" CAPGet)
 
 newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "DM" "CAPMaximumWindDirection" "toDouble" CAPGet)
+
 -- The docs say this is "Dm" (lowercase m), that is incorrect, the M is uppercase.
 
 newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "DA" "CAPAverageWindDirection" "toDouble" CAPGet)
 
 newtype CAPMinimumWindSpeed = CAPMinimumWindSpeed Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "SN" "CAPMinimumWindSpeed" "toDouble" CAPGet)
 
 newtype CAPMaximumWindSpeed = CAPMaximumWindSpeed Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "SM" "CAPMaximumWindSpeed" "toDouble" CAPGet)
 
 newtype CAPAverageWindSpeed = CAPAverageWindSpeed Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "SA" "CAPAverageWindSpeed" "toDouble" CAPGet)
 
 newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "RA" "CAPAccumulatedRainfall" "toDouble" CAPGet)
 
 newtype CAPRainfallDuration = CAPRainfallDuration Int deriving (Show, Eq)
+
 $(instanceRead' "G0" "RD" "CAPRainfallDuration" "toInt" CAPGet)
 
 newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "RI" "CAPRainfallIntensity" "toDouble" CAPGet)
 
 newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "RP" "CAPMaximumRainfallIntensity" "toDouble" CAPGet)
+
 -- The docs say this is "Rp" (lowercase p), that is incorrect, the P is uppercase.
 
 newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq)
+
 $(instanceRead' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPGet)
 
 newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
@@ -339,6 +377,9 @@ newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
 newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq)
 
 newtype CAPTemperatureUnit = CAPTemperatureUnit TemperatureUnit deriving (Show, Eq)
+
+$(instanceRead "UT" "CAPTemperatureUnit" "toTemperatureUnit" CAPGet)
+$(instanceWrite "UT" "CAPTemperatureUnit" $ Just "fromTemperatureUnit")
 
 newtype CAPPressureUnit = CAPPressureUnit PressureUnit deriving (Show, Eq)
 
