@@ -1,15 +1,18 @@
-module System.Hardware.ParameterTH (instanceRead, QueryType (..)) where
+module System.Hardware.ParameterTH (instanceRead, instanceWrite, QueryType (..)) where
 
 import Language.Haskell.TH
 
 data QueryType = CAPQuery | CAPGet
+
+instance' :: Name -> Name -> [Dec] -> InstanceDec
+instance' instanceName className = InstanceD Nothing [] (AppT (ConT instanceName) $ ConT className)
 
 instanceRead :: String -> String -> String -> QueryType -> Q [Dec]
 instanceRead cmd class' par q = do
   let className = mkName class'
       instanceName = mkName "SenseCAPRead"
   get <- genGetValue cmd q
-  return [InstanceD Nothing [] (AppT (ConT instanceName) $ ConT className) [genParseValue par, get]]
+  return [instance' instanceName className [genParseValue par, get]]
 
 genParseValue :: String -> Dec
 genParseValue parse =
@@ -32,3 +35,31 @@ genGetValue cmd typ = do
         CAPGet -> ge
         CAPQuery -> qu
   return $ FunD fname [Clause [VarP cap] (NormalB (InfixE (Just $ AppE extract cmdLit) fm (Just $ AppE (AppE sendFun (VarE cap)) cmdLit))) []]
+
+instanceWrite :: String -> String -> Maybe String -> Q [Dec]
+instanceWrite cmd class' maybeParse = do
+  let className = mkName class'
+      instanceName = mkName "SenseCAPWrite"
+  set <- genSetValue cmd
+  return [instance' instanceName className [genUnparseValue maybeParse, set]]
+
+genUnparseValue :: Maybe String -> Dec
+genUnparseValue maybeParse = 
+  let unpar = mkName "unParseValue"
+      coerce = VarE $ mkName "coerce"
+      compose = VarE $ mkName "."
+  in FunD unpar [Clause [] (case maybeParse of
+    Nothing -> NormalB coerce
+    Just a -> NormalB $ InfixE (Just $ VarE $ mkName a) compose (Just coerce)) []]
+
+genSetValue :: String -> Q Dec
+genSetValue cmd = do
+  cap <- newName "cap"
+  na <- newName "na"
+  let fname = mkName "setValue"
+      extract = VarE $ mkName "extract"
+      fm = VarE $ mkName "<$>"
+      set = VarE $ mkName "setSenseCAP"
+      un = VarE $ mkName "unParseValue"
+      cmdLit = LitE $ StringL cmd
+  return $ FunD fname [Clause [VarP cap, VarP na] (NormalB (InfixE (Just $ AppE extract cmdLit) fm (Just $ AppE (AppE (AppE set (VarE cap)) cmdLit) (AppE un $ VarE na)))) []]

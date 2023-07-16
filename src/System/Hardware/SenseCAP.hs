@@ -205,6 +205,7 @@ newtype CAPAddress = CAPAddress Word8 deriving (Show, Eq)
 
 newtype CAPBaudRate = CAPBaudRate CommSpeed deriving (Show, Eq)
 $(instanceRead "BD" "CAPBaudRate" "toBaud" CAPQuery)
+$(instanceWrite "BD" "CAPBaudRate" $ Just "unParseCommSpeed")
 
 newtype CAPProtocol = CAPProtocol CommProtocol deriving (Show, Eq)
 
@@ -212,9 +213,11 @@ newtype CAPModbusAddress = CAPModbusAddress Int deriving (Show, Eq)
 
 newtype CAPRS485BaudRate = CAPRS485BaudRate CommSpeed deriving (Show, Eq)
 $(instanceRead "MBBD" "CAPRS485BaudRate" "toBaud" CAPQuery)
+$(instanceWrite "MBBD" "CAPRS485BaudRate" $ Just "unParseCommSpeed")
 
 newtype CAPName = CAPName String deriving (Show, Eq)
 $(instanceRead "NA" "CAPName" "valueAsString" CAPQuery)
+$(instanceWrite "NA" "CAPName" Nothing)
 
 newtype CAPModel = CAPModel String deriving (Show, Eq)
 $(instanceRead "TP" "CAPModel" "valueAsString" CAPQuery)
@@ -299,16 +302,3 @@ newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq)
 
 newtype CAPClearRainDuration = CAPClearRainDuration Bool deriving (Show, Eq)
 
-
-
-
-instance SenseCAPWrite CAPBaudRate where
-  setValue cap na = extract "BD" <$> setSenseCAP cap "BD" (unParseValue na)
-
-  unParseValue = unParseCommSpeed . coerce
-
-
-instance SenseCAPWrite CAPName where
-  setValue cap na = extract "NA" <$> setSenseCAP cap "NA" (unParseValue na)
-
-  unParseValue = coerce
