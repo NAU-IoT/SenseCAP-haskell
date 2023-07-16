@@ -10,11 +10,19 @@ module System.Hardware.SenseCAP
     SenseCAP (..),
     SenseCAPResponse (..),
     valueName,
+    SenseCAPRead,
+    getValue,
+    setValue,
+    SenseCAPWrite,
+    CAPName,
+    CAPBaudRate
   )
 where
 
 import Control.Monad ((<=<))
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
+import Data.Either.Extra (maybeToEither)
+import Data.Foldable (find)
 import Data.Function ((&))
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
@@ -83,6 +91,12 @@ valueName (IntResponse _ s) = s
 valueName (DoubleResponse _ s) = s
 valueName (TextResponse _ s) = s
 
+-- | Get the name of a response value
+valueAsString :: SenseCAPResponse -> String
+valueAsString (IntResponse i _) = show i
+valueAsString (DoubleResponse d _) = show d
+valueAsString (TextResponse s _) = s
+
 -- | A response (key-value) from the SenseCAP.
 data SenseCAPResponse
   = -- | Response containing an Int
@@ -94,18 +108,18 @@ data SenseCAPResponse
   deriving (Show, Eq)
 
 -- | Split a list on a value.
-split :: Eq a => [a] -> a -> [[a]]
-split input splitter = uncurry (:) $ foldr squash (mempty, mempty) input
+split :: Eq a => a -> [a] -> [[a]]
+split splitter = uncurry (:) . foldr squash (mempty, mempty)
   where
     squash test (run, res) = if test == splitter then (mempty, run : res) else (test : run, res)
 
 -- | Parse a semicolon-delimited set of responses.
 parseResponse :: String -> Maybe [SenseCAPResponse]
-parseResponse s = mapM parseSingle $ filter (/= '\r') <$> split s ';'
+parseResponse = mapM parseSingle . split ';' . filter (/= '\r')
 
 -- | Parse a single key-value pair into a 'SenseCAPResponse'
 parseSingle :: String -> Maybe SenseCAPResponse
-parseSingle s = assemble $ split s '='
+parseSingle = assemble . split '='
   where
     assemble :: [String] -> Maybe SenseCAPResponse
     assemble [fieldName, fieldValue] =
@@ -119,3 +133,53 @@ parseSingle s = assemble $ split s '='
     firstJust (Just a) _ = Just a
     firstJust Nothing (Just a) = Just a
     firstJust _ _ = Nothing
+
+findValue :: String -> [SenseCAPResponse] -> Either String SenseCAPResponse
+findValue n = maybeToEither ("Response does not contain required value: " <> n) . find ((== n) . valueName)
+
+response :: Maybe [SenseCAPResponse] -> Either String [SenseCAPResponse]
+response = maybeToEither "No response from SenseCAP."
+
+class (Show a) => SenseCAPRead a where
+  getValue :: SenseCAP -> IO (Either String a)
+
+  parseValue :: SenseCAPResponse -> Either String a
+
+class (Show a) => SenseCAPWrite a where
+  setValue :: SenseCAP -> a -> IO (Either String a)
+
+  unParseValue :: a -> String
+  unParseValue = show
+
+newtype SenseCAPValue a = SenseCAPValue {value :: a}
+  deriving (Show)
+
+type CAPBaudRate = SenseCAPValue CommSpeed
+
+instance SenseCAPRead CAPBaudRate where
+  getValue cap = findB <$> querySenseCAP cap "BD"
+    where
+      findB :: Maybe [SenseCAPResponse] -> Either String CAPBaudRate
+      findB i = do
+        res <- response i
+        b <- findValue "BD" res
+        parseValue b
+  parseValue a = SenseCAPValue <$> (toBaud a >>= int)
+    where
+      toBaud :: SenseCAPResponse -> Either String Int
+      toBaud (IntResponse i _) = Right i
+      toBaud i = Left $ "Response given was not an integer: " <> show i
+      int :: Int -> Either String CommSpeed
+      int 96 = Right CS9600
+      int 192 = Right CS19200
+      int 384 = Right CS38400
+      int 576 = Right CS57600
+      int 1152 = Right CS115200
+      int i = Left $ "Invalid baudrate received: " <> show i
+
+type CAPName = SenseCAPValue String
+
+instance SenseCAPRead CAPName where
+  getValue cap = (\i -> response i >>= findValue "NA" >>= parseValue) <$> querySenseCAP cap "NA"
+
+  parseValue = Right . SenseCAPValue . valueAsString
