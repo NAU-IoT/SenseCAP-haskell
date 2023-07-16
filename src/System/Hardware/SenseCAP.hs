@@ -277,6 +277,7 @@ toCommProtocol (IntResponse i _) = case i of
   2 -> Right Modbus
   3 -> Right ASCII
   _ -> Left $ "Got invalid communication protocol ID: " <> show i
+toCommProtocol s = Left $ "Invalid data type for communication protocol: " <> show s
 
 fromCommProtocol :: CommProtocol -> String
 fromCommProtocol SDI12 = "1"
