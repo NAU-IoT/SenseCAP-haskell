@@ -271,6 +271,58 @@ fromPressureUnit Bar = "B"
 fromPressureUnit MMHg = "M"
 fromPressureUnit InHg = "I"
 
+toLengthUnit :: SenseCAPResponse -> Either String LengthUnit
+toLengthUnit (TextResponse s _) = case s of
+  "M" -> Right Millimeters
+  "I" -> Right Inches
+  _ -> Left $ "Invalid length unit received: " <> s
+toLengthUnit s = Left $ "Invalid data type for length unit: " <> show s
+
+fromLengthUnit :: LengthUnit -> String
+fromLengthUnit Millimeters = "M"
+fromLengthUnit Inches = "I"
+
+toSpeedUnit :: SenseCAPResponse -> Either String SpeedUnit
+toSpeedUnit (TextResponse s _) = case s of
+  "M" -> Right MetersPerSecond
+  "K" -> Right KilometersPerHour
+  "S" -> Right MilesPerHour
+  "N" -> Right Knots
+  _ -> Left $ "Invalid speed unit received: " <> s
+toSpeedUnit s = Left $ "Invalid data type for speed unit: " <> show s
+
+fromSpeedUnit :: SpeedUnit -> String
+fromSpeedUnit MetersPerSecond = "M"
+fromSpeedUnit KilometersPerHour = "K"
+fromSpeedUnit MilesPerHour = "S"
+fromSpeedUnit Knots = "N"
+
+toRainResetMode :: SenseCAPResponse -> Either String RainResetMode
+toRainResetMode (TextResponse s _) = case s of
+  "M" -> Right Manual
+  "A" -> Right PostRead
+  "L" -> Right Overflow
+  _ -> Left $ "Invalid rain reset mode received: " <> s
+toRainResetMode s = Left $ "Invalid data type for rain reset mode: " <> show s
+
+fromRainResetMode :: RainResetMode -> String
+fromRainResetMode Manual = "M"
+fromRainResetMode PostRead = "A"
+fromRainResetMode Overflow = "L"
+
+toCompassState :: SenseCAPResponse -> Either String CompassState
+toCompassState (TextResponse s _) = case s of
+  "Y" -> Right CompassEnable
+  "N" -> Right CompassDisable
+  "C" -> Right CompassGeomagnetic
+  _ -> Left $ "Invalid compass state received: " <> s
+toCompassState s = Left $ "Invalid data type for compass state: " <> show s
+
+fromCompassState :: CompassState -> String
+fromCompassState CompassEnable = "Y"
+fromCompassState CompassDisable = "N"
+fromCompassState CompassGeomagnetic = "C"
+
 toCommProtocol :: SenseCAPResponse -> Either String CommProtocol
 toCommProtocol (IntResponse i _) = case i of
   1 -> Right SDI12
@@ -333,6 +385,7 @@ newtype CAPVersion = CAPVersion String deriving (Show, Eq)
 $(instanceRead "VE" "CAPVersion" "valueAsString" CAPQuery)
 
 newtype CAPSerial = CAPSerial Int deriving (Show, Eq)
+
 $(instanceRead "S/N" "CAPSerial" "toInt" CAPQuery)
 
 newtype CAPProductionDate = CAPProductionDate String deriving (Show, Eq)
@@ -342,6 +395,9 @@ $(instanceRead "MD" "CAPProductionDate" "valueAsString" CAPQuery)
 newtype CAPRestoreConfig = CAPRestoreConfig Bool deriving (Show, Eq)
 
 newtype CAPCompassState = CAPCompassState CompassState deriving (Show, Eq)
+
+$(instanceRead "CC" "CAPCompassState" "toCompassState" CAPQuery)
+$(instanceWrite "CC" "CAPCompassState" $ Just "fromCompassState")
 
 newtype CAPTiltDetect = CAPTiltDetect Bool deriving (Show, Eq)
 
@@ -444,6 +500,9 @@ $(instanceWrite "AW" "CAPWindTimeWindow" $ Just "fromInt")
 
 newtype CAPWindSpeedUnit = CAPWindSpeedUnit SpeedUnit deriving (Show, Eq)
 
+$(instanceRead "US" "CAPWindSpeedUnit" "toSpeedUnit" CAPQuery)
+$(instanceWrite "US" "CAPWindSpeedUnit" $ Just "fromSpeedUnit")
+
 newtype CAPWindOffsetCorrection = CAPWindOffsetCorrection Int deriving (Show, Eq)
 
 $(instanceRead "DO" "CAPWindOffsetCorrection" "toInt" CAPQuery)
@@ -456,7 +515,13 @@ $(instanceWrite "IR" "CAPRainUpdateInterval" $ Just "fromInt")
 
 newtype CAPRainUnit = CAPRainUnit LengthUnit deriving (Show, Eq)
 
+$(instanceRead "UR" "CAPRainUnit" "toLengthUnit" CAPQuery)
+$(instanceWrite "UR" "CAPRainUnit" $ Just "fromLengthUnit")
+
 newtype CAPRainResetMode = CAPRainResetMode RainResetMode deriving (Show, Eq)
+
+$(instanceRead "CR" "CAPRainResetMode" "toRainResetMode" CAPQuery)
+$(instanceWrite "CR" "CAPRainResetMode" $ Just "fromRainResetMode")
 
 newtype CAPRainOverflowValue = CAPRainOverflowValue Int deriving (Show, Eq)
 
@@ -464,6 +529,9 @@ $(instanceRead "AL" "CAPRainOverflowValue" "toInt" CAPQuery)
 $(instanceWrite "AL" "CAPRainOverflowValue" $ Just "fromInt")
 
 newtype CAPRainDurationOverflowValue = CAPRainDurationOverflowValue Int deriving (Show, Eq)
+
+$(instanceRead "DL" "CAPRainDurationOverflowValue" "toInt" CAPQuery)
+$(instanceWrite "DL" "CAPRainDurationOverflowValue" $ Just "fromInt")
 
 newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq)
 
