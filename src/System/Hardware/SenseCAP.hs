@@ -113,12 +113,16 @@ data CompassState = CompassEnable | CompassDisable | CompassGeomagnetic deriving
 
 data RainResetMode = Manual | PostRead | Overflow deriving (Show, Eq)
 
+-- | Temperature unit the SenseCAP uses. Either 'Farenheit' or 'Celsius'.
 data TemperatureUnit = Celsius | Farenheit deriving (Show, Eq)
 
+-- | Pressure unit the SenseCAP uses for atmospheric pressure.
 data PressureUnit = Pascal | HectoPascal | Bar | MMHg | InHg deriving (Show, Eq)
 
+-- | Speed unit the SenseCAP uses for wind speed.
 data SpeedUnit = MetersPerSecond | KilometersPerHour | MilesPerHour | Knots deriving (Show, Eq)
 
+-- | Length unit the SenseCap uses for rain accumulation.
 data LengthUnit = Millimeters | Inches deriving (Show, Eq)
 
 -- | Perform an IO action with the SenseCAP.
@@ -248,11 +252,13 @@ fromTemperatureUnit :: TemperatureUnit -> String
 fromTemperatureUnit Farenheit = "F"
 fromTemperatureUnit Celsius = "C"
 
+-- | Encapsulates a value which can be read from the SenseCAP.
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
 
   parseValue :: SenseCAPResponse -> Either String a
 
+-- | Encapsulates a value which can be written to the SenseCAP.
 class (Show a) => SenseCAPWrite a where
   setValue :: SenseCAP -> a -> IO (Either String a)
 
