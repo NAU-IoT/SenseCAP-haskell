@@ -46,7 +46,7 @@ repl =
     { port = "/dev/ttyUSB0" &= typ "PORT" &= help portHelp,
       device_ = 0 &= typ "DEVICE" &= help deviceHelp,
       baud_ = CS9600 &= help baudHelp
-    } &= help "Launch a REPL to issue commands to and interact with the sensor. Useful for debugging the sensor."
+    } &=  help "Launch a REPL to issue commands to and interact with the sensor. Useful for debugging the sensor."
 
 query :: WeatherStation
 query =
@@ -58,7 +58,7 @@ query =
     } &= help "Query values from the sensor using a config file."
 
 cmdModes :: Mode (CmdArgs WeatherStation)
-cmdModes = cmdArgsMode $ modes [repl, query]
+cmdModes = cmdArgsMode $ modes [repl, query] &= verbosity
 
 commandEntry :: IO ()
 commandEntry = do
