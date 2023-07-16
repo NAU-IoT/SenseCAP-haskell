@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module System.Hardware.SenseCAP
   ( withSenseCAP,
@@ -15,19 +17,22 @@ module System.Hardware.SenseCAP
     setValue,
     SenseCAPWrite,
     CAPName,
-    CAPBaudRate
+    CAPBaudRate,
   )
 where
 
 import Control.Monad ((<=<))
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
+import Data.Coerce (coerce, Coercible)
 import Data.Either.Extra (maybeToEither)
 import Data.Foldable (find)
 import Data.Function ((&))
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
+import Language.Haskell.TH
 import System.Console.CmdArgs.Verbosity (whenLoud)
+import System.Hardware.ParameterTH
 import System.Hardware.Serialport
 import System.IO (Handle)
 import Text.Read (readMaybe)
@@ -56,6 +61,20 @@ data SenseCAP = SenseCAP
     -- | The file handle of the serial port.
     device :: Handle
   }
+
+data CommProtocol = SDI12 | Modbus | ASCII deriving (Show, Eq)
+
+data CompassState = CompassEnable | CompassDisable | CompassGeomagnetic deriving (Show, Eq)
+
+data RainResetMode = Manual | PostRead | Overflow deriving (Show, Eq)
+
+data TemperatureUnit = Celsius | Farenheit deriving (Show, Eq)
+
+data PressureUnit = Pascal | HectoPascal | Bar | MMHg | InHg deriving (Show, Eq)
+
+data SpeedUnit = MetersPerSecond | KilometersPerHour | MilesPerHour | Knots deriving (Show, Eq)
+
+data LengthUnit = Millimeters | Inches deriving (Show, Eq)
 
 -- | Perform an IO action with the SenseCAP.
 withSenseCAP :: FilePath -> Word8 -> CommSpeed -> (SenseCAP -> IO a) -> IO a
@@ -91,11 +110,10 @@ valueName (IntResponse _ s) = s
 valueName (DoubleResponse _ s) = s
 valueName (TextResponse _ s) = s
 
--- | Get the name of a response value
-valueAsString :: SenseCAPResponse -> String
-valueAsString (IntResponse i _) = show i
-valueAsString (DoubleResponse d _) = show d
-valueAsString (TextResponse s _) = s
+valueAsString :: SenseCAPResponse -> Either String String
+valueAsString (IntResponse i _) = Right $ show i
+valueAsString (DoubleResponse d _) = Right $ show d
+valueAsString (TextResponse s _) = Right s
 
 -- | A response (key-value) from the SenseCAP.
 data SenseCAPResponse
@@ -140,6 +158,34 @@ findValue n = maybeToEither ("Response does not contain required value: " <> n) 
 response :: Maybe [SenseCAPResponse] -> Either String [SenseCAPResponse]
 response = maybeToEither "No response from SenseCAP."
 
+extract :: SenseCAPRead b => String -> Maybe [SenseCAPResponse] -> Either String b
+extract n i = response i >>= findValue n >>= parseValue
+
+parseCommSpeed :: Int -> Either String CommSpeed
+parseCommSpeed 96 = Right CS9600
+parseCommSpeed 192 = Right CS19200
+parseCommSpeed 384 = Right CS38400
+parseCommSpeed 576 = Right CS57600
+parseCommSpeed 1152 = Right CS115200
+parseCommSpeed i = Left $ "Invalid baudrate received: " <> show i
+
+unParseCommSpeed :: CommSpeed -> String
+unParseCommSpeed CS9600 = "96"
+unParseCommSpeed CS19200 = "192"
+unParseCommSpeed CS38400 = "384"
+unParseCommSpeed CS57600 = "576"
+unParseCommSpeed CS115200 = "1152"
+unParseCommSpeed _ = "96" -- default
+
+toBaud :: SenseCAPResponse -> Either String CommSpeed
+toBaud a = toBaud' a >>= parseCommSpeed
+  where
+    toBaud' :: SenseCAPResponse -> Either String Int
+    toBaud' (IntResponse i _) = Right i
+    toBaud' i = Left $ "Response given was not an integer: " <> show i
+
+
+
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
 
@@ -151,35 +197,118 @@ class (Show a) => SenseCAPWrite a where
   unParseValue :: a -> String
   unParseValue = show
 
-newtype SenseCAPValue a = SenseCAPValue {value :: a}
-  deriving (Show)
+-- $(instanceRead "UT" "CAPModel")
 
-type CAPBaudRate = SenseCAPValue CommSpeed
+-- device parameters
 
-instance SenseCAPRead CAPBaudRate where
-  getValue cap = findB <$> querySenseCAP cap "BD"
-    where
-      findB :: Maybe [SenseCAPResponse] -> Either String CAPBaudRate
-      findB i = do
-        res <- response i
-        b <- findValue "BD" res
-        parseValue b
-  parseValue a = SenseCAPValue <$> (toBaud a >>= int)
-    where
-      toBaud :: SenseCAPResponse -> Either String Int
-      toBaud (IntResponse i _) = Right i
-      toBaud i = Left $ "Response given was not an integer: " <> show i
-      int :: Int -> Either String CommSpeed
-      int 96 = Right CS9600
-      int 192 = Right CS19200
-      int 384 = Right CS38400
-      int 576 = Right CS57600
-      int 1152 = Right CS115200
-      int i = Left $ "Invalid baudrate received: " <> show i
+newtype CAPAddress = CAPAddress Word8 deriving (Show, Eq)
 
-type CAPName = SenseCAPValue String
+newtype CAPBaudRate = CAPBaudRate CommSpeed deriving (Show, Eq)
+$(instanceRead "BD" "CAPBaudRate" "toBaud" CAPQuery)
 
-instance SenseCAPRead CAPName where
-  getValue cap = (\i -> response i >>= findValue "NA" >>= parseValue) <$> querySenseCAP cap "NA"
+newtype CAPProtocol = CAPProtocol CommProtocol deriving (Show, Eq)
 
-  parseValue = Right . SenseCAPValue . valueAsString
+newtype CAPModbusAddress = CAPModbusAddress Int deriving (Show, Eq)
+
+newtype CAPRS485BaudRate = CAPRS485BaudRate CommSpeed deriving (Show, Eq)
+$(instanceRead "MBBD" "CAPRS485BaudRate" "toBaud" CAPQuery)
+
+newtype CAPName = CAPName String deriving (Show, Eq)
+$(instanceRead "NA" "CAPName" "valueAsString" CAPQuery)
+
+newtype CAPModel = CAPModel String deriving (Show, Eq)
+$(instanceRead "TP" "CAPModel" "valueAsString" CAPQuery)
+
+newtype CAPVersion = CAPVersion String deriving (Show, Eq)
+$(instanceRead "VE" "CAPVersion" "valueAsString" CAPQuery)
+
+newtype CAPSerial = CAPSerial Int deriving (Show, Eq)
+
+newtype CAPProductionDate = CAPProductionDate String deriving (Show, Eq)
+$(instanceRead "MD" "CAPProductionDate" "valueAsString" CAPQuery)
+
+newtype CAPRestoreConfig = CAPRestoreConfig Bool deriving (Show, Eq)
+
+newtype CAPCompassState = CAPCompassState CompassState deriving (Show, Eq)
+
+newtype CAPTiltDetect = CAPTiltDetect Bool deriving (Show, Eq)
+
+newtype CAPHeating = CAPHeating Bool deriving (Show, Eq)
+
+-- sensor values
+
+newtype CAPAirTemperature = CAPAirTemperature Double deriving (Show, Eq)
+
+newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq)
+
+newtype CAPBarometricPressure = CAPBarometricPressure Double deriving (Show, Eq)
+
+newtype CAPLightIntensity = CAPLightIntensity Double deriving (Show, Eq)
+
+newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq)
+
+newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq)
+
+newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq)
+
+newtype CAPMinimumWindSpeed = CAPMinimumWindSpeed Double deriving (Show, Eq)
+
+newtype CAPMaximumWindSpeed = CAPMaximumWindSpeed Double deriving (Show, Eq)
+
+newtype CAPAverageWindSpeed = CAPAverageWindSpeed Double deriving (Show, Eq)
+
+newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq)
+
+newtype CAPRainfallDuration = CAPRainfallDuration Double deriving (Show, Eq)
+
+newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq)
+
+newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq)
+
+newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq)
+
+newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
+
+-- sensor units/update intervals
+
+newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq)
+
+newtype CAPTemperatureUnit = CAPTemperatureUnit TemperatureUnit deriving (Show, Eq)
+
+newtype CAPPressureUnit = CAPPressureUnit PressureUnit deriving (Show, Eq)
+
+newtype CAPWindUpdateInterval = CAPWindUpdateInterval Int deriving (Show, Eq)
+
+newtype CAPWindTimeWindow = CAPWindTimeWindow Int deriving (Show, Eq)
+
+newtype CAPWindSpeedUnit = CAPWindSpeedUnit SpeedUnit deriving (Show, Eq)
+
+newtype CAPWindOffsetCorrection = CAPWindOffsetCorrection Int deriving (Show, Eq)
+
+newtype CAPRainUpdateInterval = CAPRainUpdateInterval Int deriving (Show, Eq)
+
+newtype CAPRainUnit = CAPRainUnit LengthUnit deriving (Show, Eq)
+
+newtype CAPRainResetMode = CAPRainResetMode RainResetMode deriving (Show, Eq)
+
+newtype CAPRainOverflowValue = CAPRainOverflowValue Int deriving (Show, Eq)
+
+newtype CAPRainDurationOverflowValue = CAPRainDurationOverflowValue Int deriving (Show, Eq)
+
+newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq)
+
+newtype CAPClearRainDuration = CAPClearRainDuration Bool deriving (Show, Eq)
+
+
+
+
+instance SenseCAPWrite CAPBaudRate where
+  setValue cap na = extract "BD" <$> setSenseCAP cap "BD" (unParseValue na)
+
+  unParseValue = unParseCommSpeed . coerce
+
+
+instance SenseCAPWrite CAPName where
+  setValue cap na = extract "NA" <$> setSenseCAP cap "NA" (unParseValue na)
+
+  unParseValue = coerce
