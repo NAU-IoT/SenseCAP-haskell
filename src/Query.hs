@@ -14,3 +14,5 @@ runQuery cap = do
   print temp
   serial <- getValue cap :: IO (Either String CAPSerial)
   print serial
+  tilt <- getValue cap :: IO (Either String CAPFallDetection)
+  print tilt

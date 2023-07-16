@@ -336,6 +336,28 @@ fromCommProtocol SDI12 = "1"
 fromCommProtocol Modbus = "2"
 fromCommProtocol ASCII = "3"
 
+toBool :: SenseCAPResponse -> Either String Bool
+toBool (IntResponse i _) = case i of
+  0 -> Right False
+  1 -> Right True
+  _ -> Left $ "Got invalid value for boolean parameter: " <> show i
+toBool s = Left $ "Invalid data type for boolean parameter: " <> show s
+
+fromBool :: Bool -> String
+fromBool False = "0"
+fromBool True = "1"
+
+toBoolText :: SenseCAPResponse -> Either String Bool
+toBoolText (TextResponse i _) = case i of
+  "N" -> Right False
+  "Y" -> Right True
+  _ -> Left $ "Got invalid value for boolean parameter: " <> show i
+toBoolText s = Left $ "Invalid data type for boolean parameter: " <> show s
+
+fromBoolText :: Bool -> String
+fromBoolText False = "N"
+fromBoolText True = "Y"
+
 -- | Encapsulates a value which can be read from the SenseCAP.
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
@@ -394,6 +416,9 @@ $(instanceRead "MD" "CAPProductionDate" "valueAsString" CAPQuery)
 
 newtype CAPRestoreConfig = CAPRestoreConfig Bool deriving (Show, Eq)
 
+$(instanceRead "RESTORE" "CAPRestoreConfig" "toBool" CAPQuery)
+$(instanceWrite "RESTORE" "CAPRestoreConfig" $ Just "fromBool")
+
 newtype CAPCompassState = CAPCompassState CompassState deriving (Show, Eq)
 
 $(instanceRead "CC" "CAPCompassState" "toCompassState" CAPQuery)
@@ -401,7 +426,13 @@ $(instanceWrite "CC" "CAPCompassState" $ Just "fromCompassState")
 
 newtype CAPTiltDetect = CAPTiltDetect Bool deriving (Show, Eq)
 
+$(instanceRead "TD" "CAPTiltDetect" "toBoolText" CAPQuery)
+$(instanceWrite "TD" "CAPTiltDetect" $ Just "fromBoolText")
+
 newtype CAPHeating = CAPHeating Bool deriving (Show, Eq)
+
+$(instanceRead "HC" "CAPHeating" "toBoolText" CAPQuery)
+$(instanceWrite "HC" "CAPHeating" $ Just "fromBoolText")
 
 -- sensor values
 
@@ -471,6 +502,8 @@ $(instanceRead' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPGet)
 
 newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
 
+$(instanceRead' "G0" "TILT" "CAPFallDetection" "toBool" CAPGet)
+
 -- sensor units/update intervals
 
 newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq)
@@ -535,4 +568,10 @@ $(instanceWrite "DL" "CAPRainDurationOverflowValue" $ Just "fromInt")
 
 newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq)
 
+$(instanceRead "CRA" "CAPClearRain" "toBool" CAPQuery)
+$(instanceWrite "CRA" "CAPClearRain" $ Just "fromBool")
+
 newtype CAPClearRainDuration = CAPClearRainDuration Bool deriving (Show, Eq)
+
+$(instanceRead "CRD" "CAPClearRainDuration" "toBool" CAPQuery)
+$(instanceWrite "CRD" "CAPClearRainDuration" $ Just "fromBool")
