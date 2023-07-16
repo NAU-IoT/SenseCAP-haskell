@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module System.Hardware.SenseCAP
@@ -23,14 +22,13 @@ where
 
 import Control.Monad ((<=<))
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
-import Data.Coerce (coerce, Coercible)
+import Data.Coerce (coerce)
 import Data.Either.Extra (maybeToEither)
 import Data.Foldable (find)
 import Data.Function ((&))
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
-import Language.Haskell.TH
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Hardware.ParameterTH
 import System.Hardware.Serialport
@@ -78,7 +76,7 @@ data LengthUnit = Millimeters | Inches deriving (Show, Eq)
 
 -- | Perform an IO action with the SenseCAP.
 withSenseCAP :: FilePath -> Word8 -> CommSpeed -> (SenseCAP -> IO a) -> IO a
-withSenseCAP port addr baud f = hWithSerial port (defaultCAPSettings baud) $ f . SenseCAP addr baud
+withSenseCAP port addr baud' f = hWithSerial port (defaultCAPSettings baud') $ f . SenseCAP addr baud'
 
 -- | Create a query command.
 querySenseCAP :: SenseCAP -> String -> IO (Maybe [SenseCAPResponse])
@@ -184,8 +182,6 @@ toBaud a = toBaud' a >>= parseCommSpeed
     toBaud' (IntResponse i _) = Right i
     toBaud' i = Left $ "Response given was not an integer: " <> show i
 
-
-
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
 
@@ -197,11 +193,9 @@ class (Show a) => SenseCAPWrite a where
   unParseValue :: a -> String
   unParseValue = show
 
--- $(instanceRead "UT" "CAPModel")
-
 -- device parameters
 
-newtype CAPAddress = CAPAddress Word8 deriving (Show, Eq)
+newtype CAPAddress = CAPAddress Int deriving (Show, Eq)
 
 newtype CAPBaudRate = CAPBaudRate CommSpeed deriving (Show, Eq)
 $(instanceRead "BD" "CAPBaudRate" "toBaud" CAPQuery)
@@ -301,4 +295,3 @@ newtype CAPRainDurationOverflowValue = CAPRainDurationOverflowValue Int deriving
 newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq)
 
 newtype CAPClearRainDuration = CAPClearRainDuration Bool deriving (Show, Eq)
-
