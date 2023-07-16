@@ -252,6 +252,23 @@ fromTemperatureUnit :: TemperatureUnit -> String
 fromTemperatureUnit Farenheit = "F"
 fromTemperatureUnit Celsius = "C"
 
+toPressureUnit :: SenseCAPResponse -> Either String PressureUnit
+toPressureUnit (TextResponse s _) = case s of
+  "P" -> Right Pascal
+  "H" -> Right HectoPascal
+  "B" -> Right Bar
+  "M" -> Right MMHg
+  "I" -> Right InHg
+  _ -> Left $ "Invalid pressure unit received: " <> s
+toPressureUnit s = Left $ "Invalid data type for pressure unit: " <> show s
+
+fromPressureUnit :: PressureUnit -> String
+fromPressureUnit Pascal = "P"
+fromPressureUnit HectoPascal = "H"
+fromPressureUnit Bar = "B"
+fromPressureUnit MMHg = "M"
+fromPressureUnit InHg = "I"
+
 -- | Encapsulates a value which can be read from the SenseCAP.
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
@@ -388,6 +405,9 @@ $(instanceRead "UT" "CAPTemperatureUnit" "toTemperatureUnit" CAPGet)
 $(instanceWrite "UT" "CAPTemperatureUnit" $ Just "fromTemperatureUnit")
 
 newtype CAPPressureUnit = CAPPressureUnit PressureUnit deriving (Show, Eq)
+
+$(instanceRead "UP" "CAPPressureUnit" "toPressureUnit" CAPGet)
+$(instanceWrite "UP" "CAPPressureUnit" $ Just "fromPressureUnit")
 
 newtype CAPWindUpdateInterval = CAPWindUpdateInterval Int deriving (Show, Eq)
 
