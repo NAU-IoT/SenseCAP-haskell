@@ -182,6 +182,10 @@ toBaud a = toBaud' a >>= parseCommSpeed
     toBaud' (IntResponse i _) = Right i
     toBaud' i = Left $ "Response given was not an integer: " <> show i
 
+toDouble :: SenseCAPResponse -> Either String Double
+toDouble (DoubleResponse d _) = Right d
+toDouble r = Left $ "Response was not a double: " <> show r
+
 class (Show a) => SenseCAPRead a where
   getValue :: SenseCAP -> IO (Either String a)
 
@@ -235,34 +239,49 @@ newtype CAPHeating = CAPHeating Bool deriving (Show, Eq)
 -- sensor values
 
 newtype CAPAirTemperature = CAPAirTemperature Double deriving (Show, Eq)
+$(instanceRead "AT" "CAPAirTemperature" "toDouble" CAPQuery)
 
 newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq)
+$(instanceRead "AH" "CAPAirHumidity" "toDouble" CAPQuery)
 
 newtype CAPBarometricPressure = CAPBarometricPressure Double deriving (Show, Eq)
+$(instanceRead "AP" "CAPBarometricPressure" "toDouble" CAPQuery)
 
 newtype CAPLightIntensity = CAPLightIntensity Double deriving (Show, Eq)
+$(instanceRead "LX" "CAPLightIntensity" "toDouble" CAPQuery)
 
 newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq)
+$(instanceRead "DN" "CAPMinimumWindDirection" "toDouble" CAPQuery)
 
 newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq)
+$(instanceRead "Dm" "CAPMaximumWindDirection" "toDouble" CAPQuery)
 
 newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq)
+$(instanceRead "DA" "CAPAverageWindDirection" "toDouble" CAPQuery)
 
 newtype CAPMinimumWindSpeed = CAPMinimumWindSpeed Double deriving (Show, Eq)
+$(instanceRead "SN" "CAPMinimumWindSpeed" "toDouble" CAPQuery)
 
 newtype CAPMaximumWindSpeed = CAPMaximumWindSpeed Double deriving (Show, Eq)
+$(instanceRead "SM" "CAPMaximumWindSpeed" "toDouble" CAPQuery)
 
 newtype CAPAverageWindSpeed = CAPAverageWindSpeed Double deriving (Show, Eq)
+$(instanceRead "SA" "CAPAverageWindSpeed" "toDouble" CAPQuery)
 
 newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq)
+$(instanceRead "RA" "CAPAccumulatedRainfall" "toDouble" CAPQuery)
 
 newtype CAPRainfallDuration = CAPRainfallDuration Double deriving (Show, Eq)
+$(instanceRead "RD" "CAPRainfallDuration" "toDouble" CAPQuery)
 
 newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq)
+$(instanceRead "RI" "CAPRainfallIntensity" "toDouble" CAPQuery)
 
 newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq)
+$(instanceRead "Rp" "CAPMaximumRainfallIntensity" "toDouble" CAPQuery)
 
 newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq)
+$(instanceRead "HT" "CAPHeatingTemperature" "toDouble" CAPQuery)
 
 newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
 
