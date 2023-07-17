@@ -539,6 +539,17 @@ newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq, Generic)
 
 $(instancesReadAndJSON' "G0" "TILT" "CAPFallDetection" "toBool" CAPGet)
 
+-- undocumented sensor values
+
+newtype CAPCarbonDioxideConcentration = CAPCarbonDioxideConcentration Int deriving (Show, Eq, Generic) -- parts per million
+$(instancesReadAndJSON' "G0" "CO2" "CAPCarbonDioxideConcentration" "toInt" CAPGet)
+
+newtype CAPParticulate25 = CAPParticulate25 Int deriving (Show, Eq, Generic) -- micrograms per cubic meter
+$(instancesReadAndJSON' "G0" "PM2.5" "CAPParticulate25" "toInt" CAPGet)
+
+newtype CAPParticulate10 = CAPParticulate10 Int deriving (Show, Eq, Generic) -- micrograms per cubic meter
+$(instancesReadAndJSON' "G0" "PM10" "CAPParticulate10" "toInt" CAPGet)
+
 -- sensor units/update intervals
 
 newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq, Generic)
