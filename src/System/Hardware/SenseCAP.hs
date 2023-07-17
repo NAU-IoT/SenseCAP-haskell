@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module System.Hardware.SenseCAP
   ( withSenseCAP,
@@ -64,7 +65,8 @@ module System.Hardware.SenseCAP
     PressureUnit (..),
     BaudRate (..),
     RainResetMode(..),
-    CompassState(..)
+    CompassState(..),
+    CommProtocol(..)
   )
 where
 
@@ -84,6 +86,7 @@ import System.Hardware.TH
 import System.Hardware.Serialport
 import System.IO (Handle)
 import Text.Read (readMaybe)
+import Data.Data (Data, Typeable)
 
 -- | The communication protocol the SenseCAP is using. Unless you are accessing the SenseCAP over the USB interface this will obviously be 'ASCII'
 data CommProtocol = SDI12 | Modbus | ASCII deriving (Show, Eq, Generic)
@@ -118,7 +121,7 @@ data LengthUnit = Millimeters | Inches deriving (Show, Eq, Generic)
 
 $(instancesJSON "LengthUnit")
 
-data BaudRate = BD9600 | BD19200 | BD38400 | BD57600 | BD115200 deriving (Show, Eq, Generic)
+data BaudRate = BD9600 | BD19200 | BD38400 | BD57600 | BD115200 deriving (Show, Eq, Generic, Data, Typeable)
 
 $(instancesJSON "BaudRate")
 
@@ -358,6 +361,8 @@ toCommProtocol (IntResponse i _) = case i of
   1 -> Right SDI12
   2 -> Right Modbus
   3 -> Right ASCII
+  
+  6 -> Right ASCII -- ??? The docs lie!!
   _ -> Left $ "Got invalid communication protocol ID: " <> show i
 toCommProtocol s = Left $ "Invalid data type for communication protocol: " <> show s
 
