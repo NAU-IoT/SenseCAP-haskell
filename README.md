@@ -105,3 +105,14 @@ Common groups for dictating serial port access are:
  * `uucp`
  * `dialout`
  * `tty`
+
+## The docs LIE!!
+
+List of inconsistencies in the SenseCAP docs:
+
+
+ * Page 33 - Communication Protocol
+   * ASCII appears to be protocol 6, not 3. Further testing required for other protocols.
+ * Page 36 - Sensor values
+   * Maximum Wind Direction - the parameter name is `DM` (capital M), not `Dm`.
+   * Maximum Rainfall Intensity - the parameter name is `RP` (capital P) not `Rp`.

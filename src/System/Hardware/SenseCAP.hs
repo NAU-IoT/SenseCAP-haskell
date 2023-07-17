@@ -369,7 +369,7 @@ toCommProtocol s = Left $ "Invalid data type for communication protocol: " <> sh
 fromCommProtocol :: CommProtocol -> String
 fromCommProtocol SDI12 = "1"
 fromCommProtocol Modbus = "2"
-fromCommProtocol ASCII = "3"
+fromCommProtocol ASCII = "6" -- ??? The docs lie!!
 
 toBool :: SenseCAPResponse -> Either String Bool
 toBool (IntResponse i _) = case i of
