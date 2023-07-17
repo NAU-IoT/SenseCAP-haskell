@@ -1,5 +1,5 @@
 -- | For internal usage, generating instances for parameters. Not for API usage!
-module System.Hardware.ParameterTH (instancesReadAndJSON, instancesReadAndJSON', instanceWrite, instancesJSON, QueryType (..)) where
+module System.Hardware.TH (instancesReadAndJSON, instancesReadAndJSON', instanceWrite, instancesJSON, QueryType (..)) where
 
 import Language.Haskell.TH
 

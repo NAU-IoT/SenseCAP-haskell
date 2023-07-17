@@ -78,7 +78,7 @@ import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
 import GHC.Generics (Generic)
 import System.Console.CmdArgs.Verbosity (whenLoud)
-import System.Hardware.ParameterTH
+import System.Hardware.TH
 import System.Hardware.Serialport
 import System.IO (Handle)
 import Text.Read (readMaybe)
