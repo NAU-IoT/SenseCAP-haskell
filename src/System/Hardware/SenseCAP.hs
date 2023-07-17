@@ -89,7 +89,7 @@ import Text.Read (readMaybe)
 import Data.Data (Data, Typeable)
 
 -- | The communication protocol the SenseCAP is using. Unless you are accessing the SenseCAP over the USB interface this will obviously be 'ASCII'
-data CommProtocol = SDI12 | Modbus | ASCII deriving (Show, Eq, Generic)
+data CommProtocol = SDI12 | Modbus232 | Modbus485 | Modbus422 | ASCII232 | ASCII485 | ASCII422 deriving (Show, Eq, Generic)
 
 $(instancesJSON "CommProtocol")
 
@@ -359,17 +359,24 @@ fromCompassState CompassGeomagnetic = "C"
 toCommProtocol :: SenseCAPResponse -> Either String CommProtocol
 toCommProtocol (IntResponse i _) = case i of
   1 -> Right SDI12
-  2 -> Right Modbus
-  3 -> Right ASCII
-  
-  6 -> Right ASCII -- ??? The docs lie!!
+  2 -> Right Modbus232
+  3 -> Right Modbus485
+  4 -> Right Modbus422
+  5 -> Right ASCII232
+  6 -> Right ASCII485
+  7 -> Right ASCII422
   _ -> Left $ "Got invalid communication protocol ID: " <> show i
 toCommProtocol s = Left $ "Invalid data type for communication protocol: " <> show s
+-- the docs lie about this.
 
 fromCommProtocol :: CommProtocol -> String
 fromCommProtocol SDI12 = "1"
-fromCommProtocol Modbus = "2"
-fromCommProtocol ASCII = "6" -- ??? The docs lie!!
+fromCommProtocol Modbus232 = "2"
+fromCommProtocol Modbus485 = "3"
+fromCommProtocol Modbus422 = "4"
+fromCommProtocol ASCII232 = "5"
+fromCommProtocol ASCII485 = "6"
+fromCommProtocol ASCII422 = "7"
 
 toBool :: SenseCAPResponse -> Either String Bool
 toBool (IntResponse i _) = case i of

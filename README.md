@@ -112,7 +112,14 @@ List of inconsistencies in the SenseCAP docs:
 
 
  * Page 33 - Communication Protocol
-   * ASCII appears to be protocol 6, not 3. Further testing required for other protocols.
+   * The protocol IDs are wrong:
+   * 1 = SDI-12
+   * 2 = RS-232 Modbus RTU
+   * 3 = RS-485 Modbus RTU
+   * 4 = S-422 Modbus RTU
+   * 5 = RS-232 ASCII
+   * 6 = RS-485 ASCII
+   * 7 = RS-422 ASCII
  * Page 36 - Sensor values
    * Maximum Wind Direction - the parameter name is `DM` (capital M), not `Dm`.
    * Maximum Rainfall Intensity - the parameter name is `RP` (capital P) not `Rp`.
