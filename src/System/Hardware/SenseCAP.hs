@@ -63,6 +63,8 @@ module System.Hardware.SenseCAP
     SpeedUnit (..),
     PressureUnit (..),
     BaudRate (..),
+    RainResetMode(..),
+    CompassState(..)
   )
 where
 
