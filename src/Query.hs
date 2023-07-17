@@ -1,9 +1,10 @@
 module Query (runQuery) where
 
 import System.Hardware.SenseCAP
-import Data.Aeson.Types (toJSON)
+import Data.Yaml.Aeson
 import System.Hardware.Serialport
 import Config
+import Data.ByteString.Char8 (unpack)
 
 runQuery :: SenseCAP -> IO ()
 runQuery cap = do
@@ -17,5 +18,5 @@ runQuery cap = do
   print temp
   serial <- getValue cap :: IO (Either String CAPSerial)
   print serial
-  comms <- readComms cap
-  print comms
+  comms <- readConfig cap
+  putStrLn $ unpack $ encode comms
