@@ -1,5 +1,5 @@
 -- | For internal usage, generating instances for parameters. Not for API usage!
-module System.Hardware.ParameterTH (instanceRead, instanceRead', instanceWrite, QueryType (..)) where
+module System.Hardware.ParameterTH (instancesReadAndJSON, instancesReadAndJSON', instanceWrite, instancesJSON, QueryType (..)) where
 
 import Language.Haskell.TH
 
@@ -8,15 +8,16 @@ data QueryType = CAPQuery | CAPGet
 instance' :: Name -> Name -> [Dec] -> InstanceDec
 instance' instanceName className = InstanceD Nothing [] (AppT (ConT instanceName) $ ConT className)
 
-instanceRead :: String -> String -> String -> QueryType -> Q [Dec]
-instanceRead cmd = instanceRead' cmd cmd
+instancesReadAndJSON :: String -> String -> String -> QueryType -> Q [Dec]
+instancesReadAndJSON cmd = instancesReadAndJSON' cmd cmd
 
-instanceRead' :: String -> String -> String -> String -> QueryType -> Q [Dec]
-instanceRead' cmd sep class' par q = do
+instancesReadAndJSON' :: String -> String -> String -> String -> QueryType -> Q [Dec]
+instancesReadAndJSON' cmd sep class' par q = do
   let className = mkName class'
       instanceName = mkName "SenseCAPRead"
   get <- genGetValue cmd sep q
-  return [instance' instanceName className [genParseValue par, get]]
+  j <- instancesJSON class'
+  return $ [instance' instanceName className [genParseValue par, get]] <> j
 
 genParseValue :: String -> Dec
 genParseValue parse =
@@ -40,6 +41,15 @@ genGetValue cmd sep typ = do
         CAPGet -> ge
         CAPQuery -> qu
   return $ FunD fname [Clause [VarP cap] (NormalB (InfixE (Just $ AppE extract sepLit) fm (Just $ AppE (AppE sendFun (VarE cap)) cmdLit))) []]
+
+instancesJSON :: String -> Q [Dec]
+instancesJSON c = return $ ($ c) <$> [genFromJSON, genToJSON]
+
+genToJSON :: String -> Dec
+genToJSON c = instance' (mkName "ToJSON") (mkName c) []
+
+genFromJSON :: String -> Dec
+genFromJSON c = instance' (mkName "FromJSON") (mkName c) []
 
 instanceWrite :: String -> String -> Maybe String -> Q [Dec]
 instanceWrite cmd class' maybeParse = do

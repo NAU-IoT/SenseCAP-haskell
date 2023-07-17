@@ -1,6 +1,8 @@
 module Query (runQuery) where
 
 import System.Hardware.SenseCAP
+import Data.Aeson.Types (toJSON)
+import System.Hardware.Serialport
 
 runQuery :: SenseCAP -> IO ()
 runQuery cap = do
@@ -16,3 +18,4 @@ runQuery cap = do
   print serial
   tilt <- getValue cap :: IO (Either String CAPFallDetection)
   print tilt
+  print $ toJSON $ CAPBaudRate BD9600

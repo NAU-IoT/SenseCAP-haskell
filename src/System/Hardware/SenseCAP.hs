@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module System.Hardware.SenseCAP
@@ -62,10 +62,12 @@ module System.Hardware.SenseCAP
     LengthUnit (..),
     SpeedUnit (..),
     PressureUnit (..),
+    BaudRate (..),
   )
 where
 
 import Control.Monad ((<=<))
+import Data.Aeson.Types (FromJSON, ToJSON)
 import Data.ByteString.Char8 (hGetLine, hPutStr, pack, unpack)
 import Data.Coerce (coerce)
 import Data.Either.Extra (maybeToEither)
@@ -74,21 +76,68 @@ import Data.Function ((&))
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
+import GHC.Generics (Generic)
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Hardware.ParameterTH
 import System.Hardware.Serialport
 import System.IO (Handle)
 import Text.Read (readMaybe)
 
+-- | The communication protocol the SenseCAP is using. Unless you are accessing the SenseCAP over the USB interface this will obviously be 'ASCII'
+data CommProtocol = SDI12 | Modbus | ASCII deriving (Show, Eq, Generic)
+
+$(instancesJSON "CommProtocol")
+
+data CompassState = CompassEnable | CompassDisable | CompassGeomagnetic deriving (Show, Eq, Generic)
+
+$(instancesJSON "CompassState")
+
+data RainResetMode = Manual | PostRead | Overflow deriving (Show, Eq, Generic)
+
+$(instancesJSON "RainResetMode")
+
+-- | Temperature unit the SenseCAP uses. Either 'Farenheit' or 'Celsius'.
+data TemperatureUnit = Celsius | Farenheit deriving (Show, Eq, Generic)
+
+$(instancesJSON "TemperatureUnit")
+
+-- | Pressure unit the SenseCAP uses for atmospheric pressure.
+data PressureUnit = Pascal | HectoPascal | Bar | MMHg | InHg deriving (Show, Eq, Generic)
+
+$(instancesJSON "PressureUnit")
+
+-- | Speed unit the SenseCAP uses for wind speed.
+data SpeedUnit = MetersPerSecond | KilometersPerHour | MilesPerHour | Knots deriving (Show, Eq, Generic)
+
+$(instancesJSON "SpeedUnit")
+
+-- | Length unit the SenseCap uses for rain accumulation.
+data LengthUnit = Millimeters | Inches deriving (Show, Eq, Generic)
+
+$(instancesJSON "LengthUnit")
+
+data BaudRate = BD9600 | BD19200 | BD38400 | BD57600 | BD115200 deriving (Show, Eq, Generic)
+
+$(instancesJSON "BaudRate")
+
+data SenseCAP = SenseCAP
+  { -- | The address of the SenseCAP on the serial bus. This is almost always 0 unless there are multiple SenseCAPs on the same bus.
+    address :: Word8,
+    -- | The baud rate of the serial connection to the SenseCAP.
+    baud :: BaudRate,
+    -- | The file handle of the serial port.
+    device :: Handle
+  }
+
 -- | The SenseCAP command prefix, needed for every command.
 commandPrefix :: String
 commandPrefix = "XA;"
 
 -- | The serial settings to connect to the SenseCAP. The only thing here that can vary is the baud rate.
-defaultCAPSettings :: CommSpeed -> SerialPortSettings
+defaultCAPSettings :: BaudRate -> SerialPortSettings
 defaultCAPSettings c =
   SerialPortSettings
-    { commSpeed = c,
+    { commSpeed = toCommSpeed c,
       bitsPerWord = 8,
       stopb = One,
       parity = NoParity,
@@ -96,36 +145,16 @@ defaultCAPSettings c =
       timeout = 10
     }
 
-data SenseCAP = SenseCAP
-  { -- | The address of the SenseCAP on the serial bus. This is almost always 0 unless there are multiple SenseCAPs on the same bus.
-    address :: Word8,
-    -- | The baud rate of the serial connection to the SenseCAP.
-    baud :: CommSpeed,
-    -- | The file handle of the serial port.
-    device :: Handle
-  }
-
--- | The communication protocol the SenseCAP is using. Unless you are accessing the SenseCAP over the USB interface this will obviously be 'ASCII'
-data CommProtocol = SDI12 | Modbus | ASCII deriving (Show, Eq)
-
-data CompassState = CompassEnable | CompassDisable | CompassGeomagnetic deriving (Show, Eq)
-
-data RainResetMode = Manual | PostRead | Overflow deriving (Show, Eq)
-
--- | Temperature unit the SenseCAP uses. Either 'Farenheit' or 'Celsius'.
-data TemperatureUnit = Celsius | Farenheit deriving (Show, Eq)
-
--- | Pressure unit the SenseCAP uses for atmospheric pressure.
-data PressureUnit = Pascal | HectoPascal | Bar | MMHg | InHg deriving (Show, Eq)
-
--- | Speed unit the SenseCAP uses for wind speed.
-data SpeedUnit = MetersPerSecond | KilometersPerHour | MilesPerHour | Knots deriving (Show, Eq)
-
--- | Length unit the SenseCap uses for rain accumulation.
-data LengthUnit = Millimeters | Inches deriving (Show, Eq)
+toCommSpeed :: BaudRate -> CommSpeed
+toCommSpeed b = case b of
+  BD9600 -> CS9600
+  BD19200 -> CS19200
+  BD38400 -> CS38400
+  BD57600 -> CS57600
+  BD115200 -> CS115200
 
 -- | Perform an IO action with the SenseCAP.
-withSenseCAP :: FilePath -> Word8 -> CommSpeed -> (SenseCAP -> IO a) -> IO a
+withSenseCAP :: FilePath -> Word8 -> BaudRate -> (SenseCAP -> IO a) -> IO a
 withSenseCAP port addr baud' f = hWithSerial port (defaultCAPSettings baud') $ f . SenseCAP addr baud'
 
 -- | Create a query command.
@@ -171,7 +200,7 @@ data SenseCAPResponse
     DoubleResponse Double String
   | -- | Response containing a String
     TextResponse String String
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 -- | Split a list on a value.
 split :: Eq a => a -> [a] -> [[a]]
@@ -209,26 +238,25 @@ response = maybeToEither "No response from SenseCAP."
 extract :: SenseCAPRead b => String -> Maybe [SenseCAPResponse] -> Either String b
 extract n i = response i >>= findValue n >>= parseValue
 
-fromBaud :: CommSpeed -> String
-fromBaud CS9600 = "96"
-fromBaud CS19200 = "192"
-fromBaud CS38400 = "384"
-fromBaud CS57600 = "576"
-fromBaud CS115200 = "1152"
-fromBaud _ = "96" -- default
+fromBaud :: BaudRate -> String
+fromBaud BD9600 = "96"
+fromBaud BD19200 = "192"
+fromBaud BD38400 = "384"
+fromBaud BD57600 = "576"
+fromBaud BD115200 = "1152"
 
-toBaud :: SenseCAPResponse -> Either String CommSpeed
+toBaud :: SenseCAPResponse -> Either String BaudRate
 toBaud a = toBaud' a >>= parseCommSpeed
   where
     toBaud' :: SenseCAPResponse -> Either String Int
     toBaud' (IntResponse i _) = Right i
     toBaud' i = Left $ "Response given was not an integer: " <> show i
-    parseCommSpeed :: Int -> Either String CommSpeed
-    parseCommSpeed 96 = Right CS9600
-    parseCommSpeed 192 = Right CS19200
-    parseCommSpeed 384 = Right CS38400
-    parseCommSpeed 576 = Right CS57600
-    parseCommSpeed 1152 = Right CS115200
+    parseCommSpeed :: Int -> Either String BaudRate
+    parseCommSpeed 96 = Right BD9600
+    parseCommSpeed 192 = Right BD19200
+    parseCommSpeed 384 = Right BD38400
+    parseCommSpeed 576 = Right BD57600
+    parseCommSpeed 1152 = Right BD115200
     parseCommSpeed i = Left $ "Invalid baudrate received: " <> show i
 
 toDouble :: SenseCAPResponse -> Either String Double
@@ -373,205 +401,205 @@ class (Show a) => SenseCAPWrite a where
 
 -- device parameters
 
-newtype CAPBaudRate = CAPBaudRate CommSpeed deriving (Show, Eq)
+newtype CAPBaudRate = CAPBaudRate BaudRate deriving (Show, Eq, Generic)
 
-$(instanceRead "BD" "CAPBaudRate" "toBaud" CAPQuery)
+$(instancesReadAndJSON "BD" "CAPBaudRate" "toBaud" CAPQuery)
 $(instanceWrite "BD" "CAPBaudRate" $ Just "fromBaud")
 
-newtype CAPProtocol = CAPProtocol CommProtocol deriving (Show, Eq)
+newtype CAPProtocol = CAPProtocol CommProtocol deriving (Show, Eq, Generic)
 
-$(instanceRead "CP" "CAPProtocol" "toCommProtocol" CAPQuery)
+$(instancesReadAndJSON "CP" "CAPProtocol" "toCommProtocol" CAPQuery)
 $(instanceWrite "CP" "CAPProtocol" $ Just "fromCommProtocol")
 
-newtype CAPModbusAddress = CAPModbusAddress Int deriving (Show, Eq)
+newtype CAPModbusAddress = CAPModbusAddress Int deriving (Show, Eq, Generic)
 
-$(instanceRead "MBAD" "CAPModbusAddress" "toInt" CAPQuery)
+$(instancesReadAndJSON "MBAD" "CAPModbusAddress" "toInt" CAPQuery)
 $(instanceWrite "MBAD" "CAPModbusAddress" $ Just "fromInt")
 
-newtype CAPRS485BaudRate = CAPRS485BaudRate CommSpeed deriving (Show, Eq)
+newtype CAPRS485BaudRate = CAPRS485BaudRate BaudRate deriving (Show, Eq, Generic)
 
-$(instanceRead "MBBD" "CAPRS485BaudRate" "toBaud" CAPQuery)
+$(instancesReadAndJSON "MBBD" "CAPRS485BaudRate" "toBaud" CAPQuery)
 $(instanceWrite "MBBD" "CAPRS485BaudRate" $ Just "fromBaud")
 
-newtype CAPName = CAPName String deriving (Show, Eq)
+newtype CAPName = CAPName String deriving (Show, Eq, Generic)
 
-$(instanceRead "NA" "CAPName" "valueAsString" CAPQuery)
+$(instancesReadAndJSON "NA" "CAPName" "valueAsString" CAPQuery)
 $(instanceWrite "NA" "CAPName" Nothing)
 
-newtype CAPModel = CAPModel String deriving (Show, Eq)
+newtype CAPModel = CAPModel String deriving (Show, Eq, Generic)
 
-$(instanceRead "TP" "CAPModel" "valueAsString" CAPQuery)
+$(instancesReadAndJSON "TP" "CAPModel" "valueAsString" CAPQuery)
 
-newtype CAPVersion = CAPVersion String deriving (Show, Eq)
+newtype CAPVersion = CAPVersion String deriving (Show, Eq, Generic)
 
-$(instanceRead "VE" "CAPVersion" "valueAsString" CAPQuery)
+$(instancesReadAndJSON "VE" "CAPVersion" "valueAsString" CAPQuery)
 
-newtype CAPSerial = CAPSerial Int deriving (Show, Eq)
+newtype CAPSerial = CAPSerial Int deriving (Show, Eq, Generic)
 
-$(instanceRead "S/N" "CAPSerial" "toInt" CAPQuery)
+$(instancesReadAndJSON "S/N" "CAPSerial" "toInt" CAPQuery)
 
-newtype CAPProductionDate = CAPProductionDate String deriving (Show, Eq)
+newtype CAPProductionDate = CAPProductionDate String deriving (Show, Eq, Generic)
 
-$(instanceRead "MD" "CAPProductionDate" "valueAsString" CAPQuery)
+$(instancesReadAndJSON "MD" "CAPProductionDate" "valueAsString" CAPQuery)
 
-newtype CAPRestoreConfig = CAPRestoreConfig Bool deriving (Show, Eq)
+newtype CAPRestoreConfig = CAPRestoreConfig Bool deriving (Show, Eq, Generic)
 
-$(instanceRead "RESTORE" "CAPRestoreConfig" "toBool" CAPQuery)
+$(instancesReadAndJSON "RESTORE" "CAPRestoreConfig" "toBool" CAPQuery)
 $(instanceWrite "RESTORE" "CAPRestoreConfig" $ Just "fromBool")
 
-newtype CAPCompassState = CAPCompassState CompassState deriving (Show, Eq)
+newtype CAPCompassState = CAPCompassState CompassState deriving (Show, Eq, Generic)
 
-$(instanceRead "CC" "CAPCompassState" "toCompassState" CAPQuery)
+$(instancesReadAndJSON "CC" "CAPCompassState" "toCompassState" CAPQuery)
 $(instanceWrite "CC" "CAPCompassState" $ Just "fromCompassState")
 
-newtype CAPTiltDetect = CAPTiltDetect Bool deriving (Show, Eq)
+newtype CAPTiltDetect = CAPTiltDetect Bool deriving (Show, Eq, Generic)
 
-$(instanceRead "TD" "CAPTiltDetect" "toBoolText" CAPQuery)
+$(instancesReadAndJSON "TD" "CAPTiltDetect" "toBoolText" CAPQuery)
 $(instanceWrite "TD" "CAPTiltDetect" $ Just "fromBoolText")
 
-newtype CAPHeating = CAPHeating Bool deriving (Show, Eq)
+newtype CAPHeating = CAPHeating Bool deriving (Show, Eq, Generic)
 
-$(instanceRead "HC" "CAPHeating" "toBoolText" CAPQuery)
+$(instancesReadAndJSON "HC" "CAPHeating" "toBoolText" CAPQuery)
 $(instanceWrite "HC" "CAPHeating" $ Just "fromBoolText")
 
 -- sensor values
 
-newtype CAPAirTemperature = CAPAirTemperature Double deriving (Show, Eq)
+newtype CAPAirTemperature = CAPAirTemperature Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "AT" "CAPAirTemperature" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "AT" "CAPAirTemperature" "toDouble" CAPGet)
 
-newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq)
+newtype CAPAirHumidity = CAPAirHumidity Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "AH" "CAPAirHumidity" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "AH" "CAPAirHumidity" "toDouble" CAPGet)
 
-newtype CAPBarometricPressure = CAPBarometricPressure Int deriving (Show, Eq)
+newtype CAPBarometricPressure = CAPBarometricPressure Int deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "AP" "CAPBarometricPressure" "toInt" CAPGet)
+$(instancesReadAndJSON' "G0" "AP" "CAPBarometricPressure" "toInt" CAPGet)
 
-newtype CAPLightIntensity = CAPLightIntensity Int deriving (Show, Eq)
+newtype CAPLightIntensity = CAPLightIntensity Int deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "LX" "CAPLightIntensity" "toInt" CAPGet)
+$(instancesReadAndJSON' "G0" "LX" "CAPLightIntensity" "toInt" CAPGet)
 
-newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq)
+newtype CAPMinimumWindDirection = CAPMinimumWindDirection Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "DN" "CAPMinimumWindDirection" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "DN" "CAPMinimumWindDirection" "toDouble" CAPGet)
 
-newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq)
+newtype CAPMaximumWindDirection = CAPMaximumWindDirection Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "DM" "CAPMaximumWindDirection" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "DM" "CAPMaximumWindDirection" "toDouble" CAPGet)
 
 -- The docs say this is "Dm" (lowercase m), that is incorrect, the M is uppercase.
 
-newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq)
+newtype CAPAverageWindDirection = CAPAverageWindDirection Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "DA" "CAPAverageWindDirection" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "DA" "CAPAverageWindDirection" "toDouble" CAPGet)
 
-newtype CAPMinimumWindSpeed = CAPMinimumWindSpeed Double deriving (Show, Eq)
+newtype CAPMinimumWindSpeed = CAPMinimumWindSpeed Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "SN" "CAPMinimumWindSpeed" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "SN" "CAPMinimumWindSpeed" "toDouble" CAPGet)
 
-newtype CAPMaximumWindSpeed = CAPMaximumWindSpeed Double deriving (Show, Eq)
+newtype CAPMaximumWindSpeed = CAPMaximumWindSpeed Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "SM" "CAPMaximumWindSpeed" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "SM" "CAPMaximumWindSpeed" "toDouble" CAPGet)
 
-newtype CAPAverageWindSpeed = CAPAverageWindSpeed Double deriving (Show, Eq)
+newtype CAPAverageWindSpeed = CAPAverageWindSpeed Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "SA" "CAPAverageWindSpeed" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "SA" "CAPAverageWindSpeed" "toDouble" CAPGet)
 
-newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq)
+newtype CAPAccumulatedRainfall = CAPAccumulatedRainfall Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "RA" "CAPAccumulatedRainfall" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "RA" "CAPAccumulatedRainfall" "toDouble" CAPGet)
 
-newtype CAPRainfallDuration = CAPRainfallDuration Int deriving (Show, Eq)
+newtype CAPRainfallDuration = CAPRainfallDuration Int deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "RD" "CAPRainfallDuration" "toInt" CAPGet)
+$(instancesReadAndJSON' "G0" "RD" "CAPRainfallDuration" "toInt" CAPGet)
 
-newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq)
+newtype CAPRainfallIntensity = CAPRainfallIntensity Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "RI" "CAPRainfallIntensity" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "RI" "CAPRainfallIntensity" "toDouble" CAPGet)
 
-newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq)
+newtype CAPMaximumRainfallIntensity = CAPMaximumRainfallIntensity Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "RP" "CAPMaximumRainfallIntensity" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "RP" "CAPMaximumRainfallIntensity" "toDouble" CAPGet)
 
 -- The docs say this is "Rp" (lowercase p), that is incorrect, the P is uppercase.
 
-newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq)
+newtype CAPHeatingTemperature = CAPHeatingTemperature Double deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPGet)
+$(instancesReadAndJSON' "G0" "HT" "CAPHeatingTemperature" "toDouble" CAPGet)
 
-newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq)
+newtype CAPFallDetection = CAPFallDetection Bool deriving (Show, Eq, Generic)
 
-$(instanceRead' "G0" "TILT" "CAPFallDetection" "toBool" CAPGet)
+$(instancesReadAndJSON' "G0" "TILT" "CAPFallDetection" "toBool" CAPGet)
 
 -- sensor units/update intervals
 
-newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq)
+newtype CAPTemperatureUpdateInterval = CAPTemperatureUpdateInterval Int deriving (Show, Eq, Generic)
 
-$(instanceRead "IB" "CAPTemperatureUpdateInterval" "toInt" CAPQuery)
+$(instancesReadAndJSON "IB" "CAPTemperatureUpdateInterval" "toInt" CAPQuery)
 $(instanceWrite "IB" "CAPTemperatureUpdateInterval" $ Just "fromInt")
 
-newtype CAPTemperatureUnit = CAPTemperatureUnit TemperatureUnit deriving (Show, Eq)
+newtype CAPTemperatureUnit = CAPTemperatureUnit TemperatureUnit deriving (Show, Eq, Generic)
 
-$(instanceRead "UT" "CAPTemperatureUnit" "toTemperatureUnit" CAPQuery)
+$(instancesReadAndJSON "UT" "CAPTemperatureUnit" "toTemperatureUnit" CAPQuery)
 $(instanceWrite "UT" "CAPTemperatureUnit" $ Just "fromTemperatureUnit")
 
-newtype CAPPressureUnit = CAPPressureUnit PressureUnit deriving (Show, Eq)
+newtype CAPPressureUnit = CAPPressureUnit PressureUnit deriving (Show, Eq, Generic)
 
-$(instanceRead "UP" "CAPPressureUnit" "toPressureUnit" CAPQuery)
+$(instancesReadAndJSON "UP" "CAPPressureUnit" "toPressureUnit" CAPQuery)
 $(instanceWrite "UP" "CAPPressureUnit" $ Just "fromPressureUnit")
 
-newtype CAPWindUpdateInterval = CAPWindUpdateInterval Int deriving (Show, Eq)
+newtype CAPWindUpdateInterval = CAPWindUpdateInterval Int deriving (Show, Eq, Generic)
 
-$(instanceRead "IW" "CAPWindUpdateInterval" "toInt" CAPQuery)
+$(instancesReadAndJSON "IW" "CAPWindUpdateInterval" "toInt" CAPQuery)
 $(instanceWrite "IW" "CAPWindUpdateInterval" $ Just "fromInt")
 
-newtype CAPWindTimeWindow = CAPWindTimeWindow Int deriving (Show, Eq)
+newtype CAPWindTimeWindow = CAPWindTimeWindow Int deriving (Show, Eq, Generic)
 
-$(instanceRead "AW" "CAPWindTimeWindow" "toInt" CAPQuery)
+$(instancesReadAndJSON "AW" "CAPWindTimeWindow" "toInt" CAPQuery)
 $(instanceWrite "AW" "CAPWindTimeWindow" $ Just "fromInt")
 
-newtype CAPWindSpeedUnit = CAPWindSpeedUnit SpeedUnit deriving (Show, Eq)
+newtype CAPWindSpeedUnit = CAPWindSpeedUnit SpeedUnit deriving (Show, Eq, Generic)
 
-$(instanceRead "US" "CAPWindSpeedUnit" "toSpeedUnit" CAPQuery)
+$(instancesReadAndJSON "US" "CAPWindSpeedUnit" "toSpeedUnit" CAPQuery)
 $(instanceWrite "US" "CAPWindSpeedUnit" $ Just "fromSpeedUnit")
 
-newtype CAPWindOffsetCorrection = CAPWindOffsetCorrection Int deriving (Show, Eq)
+newtype CAPWindOffsetCorrection = CAPWindOffsetCorrection Int deriving (Show, Eq, Generic)
 
-$(instanceRead "DO" "CAPWindOffsetCorrection" "toInt" CAPQuery)
+$(instancesReadAndJSON "DO" "CAPWindOffsetCorrection" "toInt" CAPQuery)
 $(instanceWrite "DO" "CAPWindOffsetCorrection" $ Just "fromInt")
 
-newtype CAPRainUpdateInterval = CAPRainUpdateInterval Int deriving (Show, Eq)
+newtype CAPRainUpdateInterval = CAPRainUpdateInterval Int deriving (Show, Eq, Generic)
 
-$(instanceRead "IR" "CAPRainUpdateInterval" "toInt" CAPQuery)
+$(instancesReadAndJSON "IR" "CAPRainUpdateInterval" "toInt" CAPQuery)
 $(instanceWrite "IR" "CAPRainUpdateInterval" $ Just "fromInt")
 
-newtype CAPRainUnit = CAPRainUnit LengthUnit deriving (Show, Eq)
+newtype CAPRainUnit = CAPRainUnit LengthUnit deriving (Show, Eq, Generic)
 
-$(instanceRead "UR" "CAPRainUnit" "toLengthUnit" CAPQuery)
+$(instancesReadAndJSON "UR" "CAPRainUnit" "toLengthUnit" CAPQuery)
 $(instanceWrite "UR" "CAPRainUnit" $ Just "fromLengthUnit")
 
-newtype CAPRainResetMode = CAPRainResetMode RainResetMode deriving (Show, Eq)
+newtype CAPRainResetMode = CAPRainResetMode RainResetMode deriving (Show, Eq, Generic)
 
-$(instanceRead "CR" "CAPRainResetMode" "toRainResetMode" CAPQuery)
+$(instancesReadAndJSON "CR" "CAPRainResetMode" "toRainResetMode" CAPQuery)
 $(instanceWrite "CR" "CAPRainResetMode" $ Just "fromRainResetMode")
 
-newtype CAPRainOverflowValue = CAPRainOverflowValue Int deriving (Show, Eq)
+newtype CAPRainOverflowValue = CAPRainOverflowValue Int deriving (Show, Eq, Generic)
 
-$(instanceRead "AL" "CAPRainOverflowValue" "toInt" CAPQuery)
+$(instancesReadAndJSON "AL" "CAPRainOverflowValue" "toInt" CAPQuery)
 $(instanceWrite "AL" "CAPRainOverflowValue" $ Just "fromInt")
 
-newtype CAPRainDurationOverflowValue = CAPRainDurationOverflowValue Int deriving (Show, Eq)
+newtype CAPRainDurationOverflowValue = CAPRainDurationOverflowValue Int deriving (Show, Eq, Generic)
 
-$(instanceRead "DL" "CAPRainDurationOverflowValue" "toInt" CAPQuery)
+$(instancesReadAndJSON "DL" "CAPRainDurationOverflowValue" "toInt" CAPQuery)
 $(instanceWrite "DL" "CAPRainDurationOverflowValue" $ Just "fromInt")
 
-newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq)
+newtype CAPClearRain = CAPClearRain Bool deriving (Show, Eq, Generic)
 
-$(instanceRead "CRA" "CAPClearRain" "toBool" CAPQuery)
+$(instancesReadAndJSON "CRA" "CAPClearRain" "toBool" CAPQuery)
 $(instanceWrite "CRA" "CAPClearRain" $ Just "fromBool")
 
-newtype CAPClearRainDuration = CAPClearRainDuration Bool deriving (Show, Eq)
+newtype CAPClearRainDuration = CAPClearRainDuration Bool deriving (Show, Eq, Generic)
 
-$(instanceRead "CRD" "CAPClearRainDuration" "toBool" CAPQuery)
+$(instancesReadAndJSON "CRD" "CAPClearRainDuration" "toBool" CAPQuery)
 $(instanceWrite "CRD" "CAPClearRainDuration" $ Just "fromBool")
