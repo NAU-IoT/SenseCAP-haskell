@@ -123,3 +123,7 @@ List of inconsistencies in the SenseCAP docs:
  * Page 36 - Sensor values
    * Maximum Wind Direction - the parameter name is `DM` (capital M), not `Dm`.
    * Maximum Rainfall Intensity - the parameter name is `RP` (capital P) not `Rp`.
+   * Undocumented sensor values on the S1000:
+     * `CO2` - atmospheric carbon dioxide, measured in parts per million.
+     * `PM2.5` - particulate matter 2.5 micrometers and smaller, measured in micrograms per cubic meter.
+     * `PM10` - particulate matter 10 micrometers and smaller, measured in micrograms per cubic meter.
