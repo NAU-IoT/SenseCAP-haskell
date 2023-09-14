@@ -7,8 +7,8 @@ import Config
 import Data.ByteString.Char8 (unpack)
 
 runQuery :: SenseCAP -> IO ()
-runQuery cap = do
-  res <- getSenseCAP cap "G0"
+runQuery cap = readSensors cap >>= putStrLn . unpack . encode
+{-  res <- getSenseCAP cap "G0"
   putStrLn $ maybe "Error." show res
   name <- getValue cap :: IO (Either String CAPName)
   print name
@@ -20,3 +20,6 @@ runQuery cap = do
   print serial
   comms <- readConfig cap
   putStrLn $ unpack $ encode comms
+-}
+
+

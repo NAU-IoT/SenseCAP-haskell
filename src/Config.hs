@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Config (readConfig, CommunicationSettings (..), DeviceSettings (..), SensorUnits (..), CAPConfig (..)) where
+module Config (readConfig, readSensors, CommunicationSettings (..), DeviceSettings (..), SensorUnits (..), CAPConfig (..)) where
 
 import Data.Aeson (FromJSON, ToJSON)
 import GHC.Generics (Generic)
@@ -35,6 +35,40 @@ data CAPConfig = CAPConfig
   { comms :: CommunicationSettings,
     device :: DeviceSettings,
     units :: SensorUnits
+  }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+data Atmosphere = Atmosphere
+  { atmTemperature :: CAPAirTemperature,
+    atmHumidity    :: CAPAirHumidity,
+    atmPressure    :: CAPBarometricPressure,
+    atmLightIntensity :: CAPLightIntensity  
+  }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+data Wind = Wind
+  { windDirectionMax :: CAPMaximumWindDirection,
+    windDirectionMin :: CAPMinimumWindDirection,
+    windDirectionAvg :: CAPAverageWindDirection,
+
+    windSpeedMax :: CAPMaximumWindSpeed,
+    windSpeedMin :: CAPMinimumWindSpeed,
+    windSpeedAvg :: CAPAverageWindSpeed
+  }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+data Rain = Rain
+  { accumulatedRainfall :: CAPAccumulatedRainfall,
+    rainfallDuration :: CAPRainfallDuration,
+    rainfallIntensity :: CAPRainfallIntensity,
+    rainfallIntensityMax :: CAPMaximumRainfallIntensity
+  }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+data Sensors = Sensors
+  { atmosphere :: Atmosphere,
+    wind :: Wind,
+    rain :: Rain
   }
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
@@ -80,3 +114,37 @@ readConfig cap =
     <$$> readComms cap
     <$>*> readDevice cap
     <$>*> readUnits cap
+
+readAtmosphere :: SenseCAP -> IO (Either String Atmosphere)
+readAtmosphere cap = 
+  Atmosphere
+    <$$> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+
+readWind :: SenseCAP -> IO (Either String Wind)
+readWind cap =
+  Wind
+    <$$> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+
+readRain :: SenseCAP -> IO (Either String Rain)
+readRain cap =
+  Rain
+    <$$> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+    <$>*> getValue cap
+
+readSensors :: SenseCAP -> IO (Either String Sensors)
+readSensors cap =
+  Sensors
+    <$$> readAtmosphere cap
+    <$>*> readWind cap
+    <$>*> readRain cap
+
